@@ -4,7 +4,7 @@ from users.services import UserServices
 from projects.models import Project, UserProjectMapping 
 import uuid
 
-def user_auth_required(view_fuc):
+def auth_required(view_fuc):
     @wraps(view_fuc)
     def wrapper( request, *args, **kwargs):
         token = request.META.get('HTTP_X_LUCERNA_USER_TOKEN')
