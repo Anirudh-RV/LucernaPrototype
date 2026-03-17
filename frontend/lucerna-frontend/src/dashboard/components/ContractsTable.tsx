@@ -17,6 +17,11 @@ import {
   Menu,
   ListItemIcon,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -24,10 +29,12 @@ import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ReplayIcon from "@mui/icons-material/Replay";
 import { CONTRACTS_BASE_ENDPOINT } from "../../constants";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -61,7 +68,6 @@ interface TableDef {
 type RowData = Record<string, any>;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const COLUMN_TYPE_OPTIONS = [
   { value: "varchar", label: "Short Text", group: "Text" },
   { value: "text", label: "Long Text", group: "Text" },
@@ -578,6 +584,18 @@ export default function ContractsTable({
     value: string;
   } | null>(null);
 
+  // Table-level menu (⋯ button)
+  const [tableMenuAnchor, setTableMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  );
+
+  // Confirm dialog: "drop" | "drop_recreate" | null
+  const [confirmAction, setConfirmAction] = useState<
+    "drop" | "drop_recreate" | null
+  >(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   // ── Fetch table definition ──────────────────────────────────────────────────
 
   const fetchTableDef = useCallback(async () => {
@@ -720,21 +738,86 @@ export default function ContractsTable({
     setColMenuAnchor(null);
   };
 
-  // ── Add new row ─────────────────────────────────────────────────────────────
+  // ── Drop table ──────────────────────────────────────────────────────────────
+
+  const handleDropTable = async () => {
+    if (!tableDef) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${tableDef.id}/drop-table/`,
+        {
+          method: "POST",
+          headers: { "X-LUCERNA-USER-TOKEN": accessToken },
+        },
+      );
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setTableDef((prev) => (prev ? { ...prev, is_created: false } : prev));
+      setRows([]);
+      setConfirmAction(null);
+    } catch (e: any) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Drop then recreate ───────────────────────────────────────────────────────
+
+  const handleDropAndRecreate = async () => {
+    if (!tableDef) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      // 1. Drop
+      const dropRes = await fetch(
+        `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${tableDef.id}/drop-table/`,
+        {
+          method: "POST",
+          headers: { "X-LUCERNA-USER-TOKEN": accessToken },
+        },
+      );
+      const dropData = await dropRes.json();
+      if (dropData.error) throw new Error(`Drop failed: ${dropData.error}`);
+
+      // 2. Recreate
+      const createRes = await fetch(
+        `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${tableDef.id}/create-table/`,
+        {
+          method: "POST",
+          headers: { "X-LUCERNA-USER-TOKEN": accessToken },
+        },
+      );
+      const createData = await createRes.json();
+      if (createData.error)
+        throw new Error(`Recreate failed: ${createData.error}`);
+
+      setTableDef((prev) => (prev ? { ...prev, is_created: true } : prev));
+      setRows([]);
+      setConfirmAction(null);
+    } catch (e: any) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (confirmAction === "drop") handleDropTable();
+    else if (confirmAction === "drop_recreate") handleDropAndRecreate();
+  };
 
   const handleStartAddRow = async () => {
     if (!tableDef) return;
-
-    // Only call create-table if genuinely not created yet
-    if (!tableDef.is_created) {
-      try {
-        await ensureTableCreated(tableDef);
-      } catch (e: any) {
-        setRowError(e.message);
-        return; // hard stop only if this fails
-      }
+    try {
+      await ensureTableCreated(tableDef);
+    } catch (e: any) {
+      setRowError(e.message);
+      return;
     }
-
+    // Pre-fill defaults
     const defaults: RowData = {};
     tableDef.columns.forEach((col) => {
       if (col.default_value !== null && col.default_value !== undefined) {
@@ -1052,6 +1135,14 @@ export default function ContractsTable({
             }}
           >
             <RefreshIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Table options">
+          <IconButton
+            size="small"
+            onClick={(e) => setTableMenuAnchor(e.currentTarget)}
+          >
+            <MoreVertIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Button
@@ -1505,6 +1596,113 @@ export default function ContractsTable({
           <ListItemText>Rename column</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* ── Table options menu ── */}
+      <Menu
+        anchorEl={tableMenuAnchor}
+        open={!!tableMenuAnchor}
+        onClose={() => setTableMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            setTableMenuAnchor(null);
+            setConfirmAction("drop_recreate");
+          }}
+        >
+          <ListItemIcon>
+            <ReplayIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Drop & Recreate"
+            secondary="Wipes all rows, rebuilds schema"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setTableMenuAnchor(null);
+            setConfirmAction("drop");
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon>
+            <DeleteOutlineIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Drop Table"
+            secondary="Removes Postgres table entirely"
+          />
+        </MenuItem>
+      </Menu>
+
+      {/* ── Confirm dialog ── */}
+      <Dialog
+        open={!!confirmAction}
+        onClose={() => {
+          if (!actionLoading) {
+            setConfirmAction(null);
+            setActionError(null);
+          }
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          {confirmAction === "drop_recreate"
+            ? "Drop & Recreate Table?"
+            : "Drop Table?"}
+        </DialogTitle>
+        <DialogContent>
+          {actionError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {actionError}
+            </Alert>
+          )}
+          <DialogContentText>
+            {confirmAction === "drop_recreate" ? (
+              <>
+                This will <strong>permanently delete all rows</strong> in{" "}
+                <code>{tableDef?.pg_table_name}</code> and rebuild the Postgres
+                table from the current column definitions. The column schema is
+                preserved.
+              </>
+            ) : (
+              <>
+                This will <strong>permanently drop</strong> the Postgres table{" "}
+                <code>{tableDef?.pg_table_name}</code> and all its data. The
+                column definitions will remain so you can recreate it later.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConfirmAction(null);
+              setActionError(null);
+            }}
+            disabled={actionLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            color="error"
+            variant="contained"
+            disabled={actionLoading}
+            startIcon={
+              actionLoading ? (
+                <CircularProgress size={14} color="inherit" />
+              ) : undefined
+            }
+          >
+            {actionLoading
+              ? "Working…"
+              : confirmAction === "drop_recreate"
+                ? "Drop & Recreate"
+                : "Drop Table"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
