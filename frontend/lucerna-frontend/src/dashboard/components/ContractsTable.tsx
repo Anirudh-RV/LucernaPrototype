@@ -67,7 +67,6 @@ interface TableDef {
 
 type RowData = Record<string, any>;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const COLUMN_TYPE_OPTIONS = [
   { value: "varchar", label: "Short Text", group: "Text" },
   { value: "text", label: "Long Text", group: "Text" },
@@ -574,7 +573,7 @@ export default function ContractsTable({
   const [nameValue, setNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
 
-  // Column menu
+  // Column display name inline editing
   const [colMenuAnchor, setColMenuAnchor] = useState<{
     el: HTMLElement;
     col: ColumnDef;
@@ -1268,7 +1267,6 @@ export default function ContractsTable({
                               );
                             if (e.key === "Escape") {
                               setEditingColDisplay(null);
-                              setColMenuAnchor(null);
                             }
                           }}
                           onBlur={() =>
@@ -1278,6 +1276,7 @@ export default function ContractsTable({
                             )
                           }
                           autoFocus
+                          onClick={(e) => e.stopPropagation()}
                           sx={{
                             "& .MuiInputBase-input": {
                               fontSize: 12,
@@ -1285,13 +1284,49 @@ export default function ContractsTable({
                               py: 0.25,
                               px: 0.75,
                             },
-                            width: 120,
+                            width: 130,
                           }}
                         />
                       ) : (
-                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>
-                          {col.display_name}
-                        </Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            cursor: "text",
+                            borderRadius: 0.5,
+                            px: 0.5,
+                            mx: -0.5,
+                            "&:hover": { bgcolor: "action.selected" },
+                            "&:hover .col-edit-icon": { opacity: 1 },
+                          }}
+                          onClick={() =>
+                            setEditingColDisplay({
+                              id: col.id,
+                              value: col.display_name,
+                            })
+                          }
+                        >
+                          <Typography
+                            sx={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              userSelect: "none",
+                            }}
+                          >
+                            {col.display_name}
+                          </Typography>
+                          <EditIcon
+                            className="col-edit-icon"
+                            sx={{
+                              fontSize: 11,
+                              color: "text.disabled",
+                              opacity: 0,
+                              transition: "opacity 0.15s",
+                              flexShrink: 0,
+                            }}
+                          />
+                        </Box>
                       )}
                       <Chip
                         label={getTypeLabel(col.column_type)}
@@ -1316,22 +1351,6 @@ export default function ContractsTable({
                           *
                         </Typography>
                       )}
-                      <Tooltip title="Column options">
-                        <IconButton
-                          size="small"
-                          sx={{
-                            p: 0.25,
-                            opacity: 0.4,
-                            "&:hover": { opacity: 1 },
-                            ml: "auto",
-                          }}
-                          onClick={(e) =>
-                            setColMenuAnchor({ el: e.currentTarget, col })
-                          }
-                        >
-                          <MoreHorizIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
                     </Box>
                     <Typography
                       sx={{
@@ -1570,32 +1589,6 @@ export default function ContractsTable({
           </tbody>
         </Box>
       </Box>
-
-      {/* ── Column options menu ── */}
-      <Menu
-        anchorEl={colMenuAnchor?.el}
-        open={!!colMenuAnchor}
-        onClose={() => {
-          setColMenuAnchor(null);
-          setEditingColDisplay(null);
-        }}
-      >
-        <MenuItem
-          onClick={() => {
-            if (!colMenuAnchor) return;
-            setEditingColDisplay({
-              id: colMenuAnchor.col.id,
-              value: colMenuAnchor.col.display_name,
-            });
-            setColMenuAnchor(null);
-          }}
-        >
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Rename column</ListItemText>
-        </MenuItem>
-      </Menu>
 
       {/* ── Table options menu ── */}
       <Menu
