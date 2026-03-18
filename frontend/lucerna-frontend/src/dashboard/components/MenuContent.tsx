@@ -42,7 +42,7 @@ export default function MenuContent({
         <ListItem disablePadding sx={{ display: "block" }}>
           <ListItemButton
             onClick={() => {
-              window.open("mailto:support@LUCERNA.com", "_blank");
+              window.open("mailto:support@lucerna.com", "_blank");
             }}
           >
             <ListItemIcon>

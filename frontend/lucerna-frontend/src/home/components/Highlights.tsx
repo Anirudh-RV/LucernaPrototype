@@ -1,54 +1,54 @@
-import { Box, Card, Container, Grid, Stack, Typography } from "@mui/material";
-import ConstructionRoundedIcon from "@mui/icons-material/ConstructionRounded";
-import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import ThumbUpAltRoundedIcon from "@mui/icons-material/ThumbUpAltRounded";
+import { Box, Card, Container, Stack, Typography } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
-import AssuredWorkloadIcon from "@mui/icons-material/AssuredWorkload";
-import TerminalIcon from "@mui/icons-material/Terminal";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import LockPersonIcon from "@mui/icons-material/LockPerson";
+import PhoneInTalkIcon from "@mui/icons-material/PhoneInTalk";
+import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 
 const items = [
   {
-    icon: <ConstructionRoundedIcon fontSize="large" />,
-    title: "Automated deployments",
+    icon: <TableChartIcon fontSize="large" />,
+    title: "Custom contract schema",
     description:
-      "Write your algorithm on our IDE and LUCERNA takes care of all the deployments automatically on the cloud.",
+      "Define your contract table with any columns you need — text, numbers, dates, currencies, booleans, and auto-generated contract IDs. No code, no migrations.",
   },
   {
-    icon: <PsychologyIcon fontSize="large" />,
-    title: "LUCERNA AI",
+    icon: <LockPersonIcon fontSize="large" />,
+    title: "Row-level access control",
     description:
-      "Let LUCERNA AI help you write your algorithms by just describing it in words.",
+      "Grant each stakeholder access to all contracts or lock them to specific rows. Access is enforced on every call — no configuration errors possible.",
   },
   {
-    icon: <ThumbUpAltRoundedIcon fontSize="large" />,
-    title: "Great user experience",
+    icon: <MarkEmailReadIcon fontSize="large" />,
+    title: "Email OTP authentication",
     description:
-      "Find all that you need for backtesting, paper trading and live trading on one platform.",
+      "Before sharing any contract data, the agent verifies the caller's identity with a one-time code sent to their registered email. Secure by default.",
   },
   {
-    icon: <TerminalIcon fontSize="large" />,
-    title: "Cloud IDE",
+    icon: <PhoneInTalkIcon fontSize="large" />,
+    title: "Inbound & outbound calls",
     description:
-      "Write, run and test your python code on the browser with ease. No installation required.",
+      "Stakeholders can call in for updates, or the agent can proactively call stakeholders to request information — both flows are supported out of the box.",
   },
   {
-    icon: <AssuredWorkloadIcon fontSize="large" />,
-    title: "Broker support",
-    description: "Connect with your preffered broker for your trades.",
+    icon: <EditNoteIcon fontSize="large" />,
+    title: "Live contract updates",
+    description:
+      "Stakeholders can update editable contract fields verbally during the call. The agent confirms changes before writing them and logs every update.",
   },
   {
-    icon: <QueryStatsRoundedIcon fontSize="large" />,
-    title: "Gain deeper insights",
+    icon: <SupportAgentIcon fontSize="large" />,
+    title: "Graceful human escalation",
     description:
-      "Backtest and Paper trade your algorithm to battle test it before deploying it on Live trades",
+      "When the agent can't answer something, it tells the caller a human will call them back — and logs the escalation so nothing falls through the cracks.",
   },
 ];
 
 export default function Highlights() {
   const { mode, systemMode } = useColorScheme();
   const resolvedMode = mode === "system" ? systemMode : mode;
-
   const isDark = resolvedMode === "dark";
 
   return (
@@ -77,21 +77,27 @@ export default function Highlights() {
           }}
         >
           <Typography component="h2" variant="h4" gutterBottom>
-            Highlights
+            Everything you need, nothing you don't
           </Typography>
           <Typography
             variant="body1"
             sx={{ color: isDark ? "grey.400" : "grey.600" }}
           >
-            Discover what makes LUCERNA the ultimate platform for algorithmic
-            trading for everyone.
+            Lucerna is purpose-built for enterprise contract management — not a
+            general-purpose tool bolted onto a voice API.
           </Typography>
         </Box>
+
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)", // 3 columns always
-            gap: 2, // spacing between cards
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(3, 1fr)",
+            },
+            gap: 2,
+            width: "100%",
           }}
         >
           {items.map((item, index) => (

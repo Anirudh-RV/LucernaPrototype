@@ -1,11 +1,14 @@
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import Chip from "@mui/material/Chip";
 import { styled } from "@mui/material/styles";
 import { useColorScheme } from "@mui/material/styles";
-import Button from "@mui/material/Button";
 import { useNavigate } from "react-router-dom";
+import PhoneInTalkIcon from "@mui/icons-material/PhoneInTalk";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 const StyledBox = styled("div")(({ theme }) => ({
   alignSelf: "center",
@@ -27,6 +30,12 @@ const StyledBox = styled("div")(({ theme }) => ({
     borderColor: (theme.vars || theme).palette.grey[700],
   }) || {}),
 }));
+
+const proofPoints = [
+  "No code required",
+  "Live in under 10 minutes",
+  "AI handles stakeholder calls",
+];
 
 export default function Hero() {
   const { mode, systemMode } = useColorScheme();
@@ -57,92 +66,131 @@ export default function Hero() {
         }}
       >
         <Stack
-          spacing={2}
+          spacing={3}
           useFlexGap
-          sx={{ alignItems: "center", width: { xs: "100%", sm: "70%" } }}
+          sx={{ alignItems: "center", width: { xs: "100%", sm: "75%" } }}
         >
+          {/* Eyebrow label */}
+          <Chip
+            icon={<PhoneInTalkIcon sx={{ fontSize: "14px !important" }} />}
+            label="AI-Powered Contract Voice Agent"
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 600, letterSpacing: 0.3 }}
+          />
+
           <Typography
             variant="h1"
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: "center",
-              fontSize: "clamp(3rem, 10vw, 3.5rem)",
+              textAlign: "center",
+              fontSize: "clamp(2.5rem, 8vw, 3.75rem)",
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: "-0.02em",
             }}
           >
-            LU
+            Your contracts,{" "}
             <Typography
               component="span"
               variant="h1"
-              sx={(theme) => ({
+              sx={{
                 fontSize: "inherit",
+                fontWeight: "inherit",
                 color: "primary.main",
-              })}
+              }}
             >
-              CERNA
+              always answered.
             </Typography>
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              textAlign: "center",
-              fontWeight: 500,
-              color: "text.primary",
-              fontSize: "clamp(1.25rem, 5vw, 2rem)",
-            }}
-          >
-            Manage your contracts the right way!
           </Typography>
 
           <Typography
             sx={{
               textAlign: "center",
               color: "text.secondary",
-              width: { sm: "100%", md: "80%" },
-              fontSize: "1rem",
-            }}
-          >
-            LUCERNA is the Contract Management platform the AI Era.
-            <br />
-            Create custom contracts and have our AI answer all the questions
-            your stakeholders have. <br />
-            Save time for your Contracting Team and increase your stakeholder
-            satisfication!
-          </Typography>
-          <Button
-            color="primary"
-            variant="contained"
-            size="large"
-            onClick={() => navigate("/signup")}
-            sx={{
+              width: { sm: "100%", md: "75%" },
               fontSize: "1.125rem",
-              px: 4,
-              py: 1.5,
-              boxShadow: "0 0 12px 4px hsla(210, 100%, 70%, 0.7) !important",
-              backgroundColor: "primary.main",
-              "&:focus-visible": {
-                boxShadow: "0 0 24px 8px hsla(210, 100%, 70%, 0.9) !important",
-              },
+              lineHeight: 1.7,
             }}
           >
-            Sign Up
-          </Button>
+            Lucerna lets enterprises build a custom contract database and deploy
+            an AI voice agent that authenticates stakeholders, answers contract
+            questions, and logs updates — all over a phone call, with zero human
+            involvement.
+          </Typography>
+
+          {/* Proof points */}
+          <Stack
+            direction="row"
+            spacing={2}
+            flexWrap="wrap"
+            justifyContent="center"
+            useFlexGap
+          >
+            {proofPoints.map((point) => (
+              <Stack
+                key={point}
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+              >
+                <CheckCircleOutlineIcon
+                  sx={{ fontSize: 16, color: "success.main" }}
+                />
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  fontWeight={500}
+                >
+                  {point}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} useFlexGap>
+            <Button
+              color="primary"
+              variant="contained"
+              size="large"
+              onClick={() => navigate("/signup")}
+              sx={{
+                fontSize: "1rem",
+                px: 4,
+                py: 1.5,
+                boxShadow: "0 0 12px 4px hsla(210, 100%, 70%, 0.7) !important",
+                "&:focus-visible": {
+                  boxShadow:
+                    "0 0 24px 8px hsla(210, 100%, 70%, 0.9) !important",
+                },
+              }}
+            >
+              Get started free
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() =>
+                document
+                  .getElementById("features")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+              sx={{ fontSize: "1rem", px: 4, py: 1.5 }}
+            >
+              See how it works
+            </Button>
+          </Stack>
         </Stack>
 
-        {/* ✅ Styled container + image */}
         <StyledBox id="image">
           <img
             src={
-              resolvedMode == "dark"
-                ? "/images/dark-code.png"
-                : "/images/light-code.png"
+              resolvedMode === "dark"
+                ? "/images/dark-dashboard.png"
+                : "/images/light-dashboard.png"
             }
-            alt="Dashboard Screenshot"
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
-            }}
+            alt="Lucerna contract dashboard"
+            style={{ width: "100%", height: "auto", display: "block" }}
           />
         </StyledBox>
       </Container>

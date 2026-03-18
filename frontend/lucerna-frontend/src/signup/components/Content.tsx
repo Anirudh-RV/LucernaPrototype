@@ -1,48 +1,49 @@
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import AssuredWorkloadIcon from "@mui/icons-material/AssuredWorkload";
-import TerminalIcon from "@mui/icons-material/Terminal";
-import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
-import ThumbUpAltRoundedIcon from "@mui/icons-material/ThumbUpAltRounded";
-import ConstructionRoundedIcon from "@mui/icons-material/ConstructionRounded";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import LockPersonIcon from "@mui/icons-material/LockPerson";
+import PhoneInTalkIcon from "@mui/icons-material/PhoneInTalk";
+import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 
 const items = [
   {
-    icon: <ConstructionRoundedIcon fontSize="large" />,
-    title: "Automated deployments",
+    icon: <TableChartIcon fontSize="large" />,
+    title: "Custom contract schema",
     description:
-      "Write your algorithm on our IDE and LUCERNA takes care of all the deployments automatically on the cloud.",
+      "Define your contract table with any columns your business needs — no code or migrations required.",
   },
   {
-    icon: <PsychologyIcon fontSize="large" />,
-    title: "LUCERNA AI",
+    icon: <LockPersonIcon fontSize="large" />,
+    title: "Row-level access control",
     description:
-      "Let LUCERNA AI help you write your algorithms by just describing it in words.",
+      "Grant each stakeholder access to all contracts or restrict them to specific rows only.",
   },
   {
-    icon: <ThumbUpAltRoundedIcon fontSize="large" />,
-    title: "Great user experience",
+    icon: <MarkEmailReadIcon fontSize="large" />,
+    title: "Email OTP authentication",
     description:
-      "Find all that you need for backtesting, paper trading and live trading on one platform.",
+      "Every caller is verified with a one-time code before any contract data is shared.",
   },
   {
-    icon: <TerminalIcon fontSize="large" />,
-    title: "Cloud IDE",
+    icon: <PhoneInTalkIcon fontSize="large" />,
+    title: "Inbound & outbound calls",
     description:
-      "Write, run and test your python code on the browser with ease. No installation required.",
+      "Stakeholders can call in for updates, or the agent proactively calls them to collect information.",
   },
   {
-    icon: <AssuredWorkloadIcon fontSize="large" />,
-    title: "Broker support",
-    description: "Connect with your preffered broker for your trades.",
+    icon: <EditNoteIcon fontSize="large" />,
+    title: "Live contract updates",
+    description:
+      "Callers can update editable contract fields verbally — the agent confirms before writing any change.",
   },
   {
-    icon: <QueryStatsRoundedIcon fontSize="large" />,
-    title: "Gain deeper insights",
+    icon: <SupportAgentIcon fontSize="large" />,
+    title: "Graceful human escalation",
     description:
-      "Backtest and Paper trade your algorithm to battle test it before deploying it on Live trades",
+      "When the agent can't help, it logs the escalation and tells the caller a human will follow up.",
   },
 ];
 
@@ -56,7 +57,7 @@ export default function Content() {
         maxWidth: 450,
       }}
     >
-      <Box sx={{ display: { xs: "none", md: "flex" } }}></Box>
+      <Box sx={{ display: { xs: "none", md: "flex" } }} />
       {items.map((item, index) => (
         <Stack key={index} direction="row" sx={{ gap: 2 }}>
           {item.icon}

@@ -7,7 +7,6 @@ import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import GitHubIcon from "@mui/icons-material/GitHub";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import TwitterIcon from "@mui/icons-material/X";
 
@@ -148,14 +147,6 @@ export default function Footer() {
           >
             About us
           </Link>
-          <Link
-            component={RouterLink}
-            to="/blog"
-            color="text.secondary"
-            variant="body2"
-          >
-            Blog
-          </Link>
         </Box>
 
         <Box
@@ -236,17 +227,7 @@ export default function Footer() {
           <IconButton
             color="inherit"
             size="small"
-            href="https://github.com/yxiaa/LUCERNA-algo-trading-sdk"
-            aria-label="GitHub"
-            sx={{ alignSelf: "center" }}
-            target="_blank"
-          >
-            <GitHubIcon />
-          </IconButton>
-          <IconButton
-            color="inherit"
-            size="small"
-            href="https://x.com/LUCERNAtrading"
+            href="https://x.com/lucerna"
             aria-label="X"
             sx={{ alignSelf: "center" }}
             target="_blank"
@@ -256,7 +237,7 @@ export default function Footer() {
           <IconButton
             color="inherit"
             size="small"
-            href="https://www.linkedin.com/company/LUCERNA/"
+            href="https://www.linkedin.com/company/lucerna/"
             aria-label="LinkedIn"
             sx={{ alignSelf: "center" }}
             target="_blank"

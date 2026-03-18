@@ -1,5 +1,4 @@
 import * as React from "react";
-
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -7,50 +6,50 @@ import MuiChip from "@mui/material/Chip";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
-import CodeIcon from "@mui/icons-material/Code";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import ViewQuiltRoundedIcon from "@mui/icons-material/ViewQuiltRounded";
 import { useColorScheme } from "@mui/material/styles";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import PhoneInTalkIcon from "@mui/icons-material/PhoneInTalk";
+import GroupIcon from "@mui/icons-material/Group";
 
 const items = [
   {
-    icon: <ViewQuiltRoundedIcon />,
-    title: "Dashboard",
+    icon: <TableChartIcon />,
+    title: "Custom Contract Tables",
     description:
-      "A comprehensive dashboard that helps you track your algorithms, backtests and portfolio.",
+      "Define your contract schema exactly the way your business works — no code, no migrations.",
     points: [
-      "Track your strategies, performance metrics, and open positions in one unified view.",
-      "Get a high level overview of all your backtests and trading activity.",
-      "Monitor your portfolio and algorithmic trading sessions in real time.",
+      "Create contract tables with any columns you need: text, numbers, dates, currencies, booleans, and more.",
+      "Add, rename, and restructure your schema at any time without losing existing data.",
+      "Every contract gets a unique auto-generated Contract ID for easy reference on calls.",
     ],
-    imageLight: `url("/images/light-dashboard.png")`,
-    imageDark: `url("/images/dark-dashboard.png")`,
+    imageLight: `url("/images/light-custom_contracts.png")`,
+    imageDark: `url("/images/dark-custom_contracts.png")`,
   },
   {
-    icon: <CodeIcon />,
-    title: "Cloud Coding Environment",
+    icon: <GroupIcon />,
+    title: "Stakeholder Management",
     description:
-      "A cloud environment for you to code in Python with all the features you'd expect from an IDE without having to download a thing.",
+      "Control exactly who can access which contracts, down to the individual row level.",
     points: [
-      "Code in Python directly in the browser. No installation required.",
-      "Use LUCERNA AI to generate code by describing your strategy in plain English.",
-      "Review, edit, and fully customize the generated code with a full featured IDE.",
+      "Register stakeholders with their name, email, and phone number for voice authentication.",
+      "Grant access to all contracts or restrict each stakeholder to specific contract rows.",
+      "Access rules are enforced automatically on every inbound and outbound call.",
     ],
-    imageLight: `url("/images/light-code.png")`,
-    imageDark: `url("/images/dark-code.png")`,
+    imageLight: `url("/images/light-stakeholdermanagement.png")`,
+    imageDark: `url("/images/dark-stakeholdermanagement.png")`,
   },
   {
-    icon: <AccountBalanceIcon />,
-    title: "Trading & Execution",
+    icon: <PhoneInTalkIcon />,
+    title: "AI Voice Agent",
     description:
-      "Backtest, simulate, and execute your strategies seamlessly using your preferred broker.",
+      "A fully automated phone agent that authenticates callers, answers questions, and updates contracts.",
     points: [
-      "Run historical backtests with real market data to validate your strategy.",
-      "Simulate trades with paper trading in live market conditions without any risk.",
-      "Connect to supported brokers and deploy your algorithms live from LUCERNA.",
+      "Stakeholders call in and are verified via email OTP before any contract data is shared.",
+      "The agent reads out contract status, answers field-level questions, and accepts verbal updates.",
+      "Escalates to a human automatically when something is outside its scope.",
     ],
-    imageLight: `url("/images/light-dashboard.png")`,
-    imageDark: `url("/images/dark-dashboard.png")`,
+    imageLight: `url("/images/light-voiceagent.png")`,
+    imageDark: `url("/images/dark-voiceagent.png")`,
   },
 ];
 
@@ -118,7 +117,7 @@ export function MobileLayout({
         <Box
           sx={(theme) => ({
             mb: 2,
-            display: { xs: "block", md: "none" }, // ✅ FIXED LINE
+            display: { xs: "block", md: "none" },
             backgroundSize: "contain",
             backgroundPosition: "center",
             minHeight: 280,
@@ -136,7 +135,6 @@ export function MobileLayout({
               : {}
           }
         />
-
         <Box sx={{ px: 2, pb: 2 }}>
           <Typography
             gutterBottom
@@ -170,13 +168,9 @@ export function MobileLayout({
 export default function Features() {
   const { mode, systemMode } = useColorScheme();
   const resolvedMode = mode === "system" ? systemMode : mode;
-
   const [selectedItemIndex, setSelectedItemIndex] = React.useState(0);
 
-  const handleItemClick = (index: number) => {
-    setSelectedItemIndex(index);
-  };
-
+  const handleItemClick = (index: number) => setSelectedItemIndex(index);
   const selectedFeature = items[selectedItemIndex];
 
   const imageUrl = extractUrl(
@@ -194,11 +188,12 @@ export default function Features() {
           gutterBottom
           sx={{ color: "text.primary" }}
         >
-          Product Features
+          How Lucerna works
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Explore the key features of LUCERNA that streamline algorithmic
-          trading, from strategy creation to live execution.
+          Three layers that work together — a contract database, stakeholder
+          access controls, and an AI voice agent that ties it all together on
+          the phone.
         </Typography>
       </Box>
 
@@ -209,7 +204,6 @@ export default function Features() {
           gap: 2,
         }}
       >
-        {/* Desktop list */}
         <div>
           <Box
             sx={{
@@ -251,9 +245,7 @@ export default function Features() {
                       textTransform: "none",
                       color: "text.secondary",
                     },
-                    selectedItemIndex === index && {
-                      color: "text.primary",
-                    },
+                    selectedItemIndex === index && { color: "text.primary" },
                   ]}
                 >
                   {icon}
@@ -285,7 +277,6 @@ export default function Features() {
               width: "100%",
             }}
           >
-            {/* Mobile layout */}
             <MobileLayout
               selectedItemIndex={selectedItemIndex}
               handleItemClick={handleItemClick}
@@ -293,7 +284,7 @@ export default function Features() {
             />
           </Box>
         </div>
-        {/* Image Preview Card */}
+
         <Box
           sx={{
             display: { xs: "none", sm: "flex" },

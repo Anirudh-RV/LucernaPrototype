@@ -14,54 +14,59 @@ import { Link } from "react-router-dom";
 
 const tiers = [
   {
-    title: "Free",
+    title: "Starter",
     price: "0",
     description: [
-      "No credit card required",
-      "Create upto 5 algorithms",
-      "Backtesting on 5 years of data",
-      "5,000 daily credits for LUCERNA AI",
-      "10,000 daily credits for Backtesting",
+      "1 project",
+      "Up to 3 stakeholders",
+      "Up to 500 contract rows",
+      "100 agent calls per month",
+      "Email OTP authentication",
+      "Inbound calls only",
     ],
     buttonText: "Sign up for free",
     buttonVariant: "outlined",
     buttonColor: "secondary",
+    isFree: true,
   },
   {
-    title: "Standard",
-    subheader: "Recommended",
-    price: "20",
+    title: "Business",
+    subheader: "Most popular",
+    price: "149",
     description: [
-      "Create upto 25 algorithms",
-      "Access to LUCERNA vault",
-      "Backtest on all available datasets",
-      "25,000 daily credits for LUCERNA AI",
-      "50,000 daily credits for Backtesting",
-      "Support for Paper Trading and Live Trading",
+      "Up to 10 projects",
+      "Unlimited stakeholders",
+      "Unlimited contract rows",
+      "2,000 agent calls per month",
+      "Inbound & outbound calls",
+      "Row-level access control",
+      "Human escalation logging",
+      "Priority email support",
     ],
     buttonText: "Start now",
     buttonVariant: "contained",
     buttonColor: "secondary",
     comingSoon: true,
+    highlight: true,
   },
   {
-    title: "Pro",
-    price: "99",
+    title: "Enterprise",
+    price: "Custom",
     description: [
-      "Unlimited algorithm creation",
-      "Access to LUCERNA vault",
-      "Backtest on all available datasets",
-      "Provide custom datasets for Backtesting",
-      "100,000 daily credits for LUCERNA AI",
-      "250,000 daily credits for Backtesting",
-      "Support for Paper Trading and Live Trading",
-      "Priority access to new features",
-      "Premium customer support",
+      "Unlimited projects",
+      "Unlimited stakeholders & rows",
+      "Unlimited agent calls",
+      "Custom voice & language settings",
+      "SSO & advanced access controls",
+      "Dedicated onboarding",
+      "SLA & uptime guarantees",
+      "Custom integrations & APIs",
     ],
-    buttonText: "Get started",
+    buttonText: "Talk to sales",
     buttonVariant: "outlined",
     buttonColor: "secondary",
-    comingSoon: true,
+    comingSoon: false,
+    isEnterprise: true,
   },
 ];
 
@@ -91,13 +96,14 @@ export default function Pricing() {
           gutterBottom
           sx={{ color: "text.primary" }}
         >
-          Pricing
+          Simple, transparent pricing
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Enjoy a generous Free Tier to test our product and choose a plan that
-          best suites your needs.
+          Start for free and scale as your contracting operations grow. No
+          per-call surprises on the Starter plan.
         </Typography>
       </Box>
+
       <Grid
         container
         spacing={3}
@@ -105,7 +111,7 @@ export default function Pricing() {
       >
         {tiers.map((tier) => (
           <Grid
-            size={{ xs: 12, sm: tier.title === "Pro" ? 12 : 6, md: 4 }}
+            size={{ xs: 12, sm: tier.isEnterprise ? 12 : 6, md: 4 }}
             key={tier.title}
           >
             <Card
@@ -118,7 +124,7 @@ export default function Pricing() {
                   width: "100%",
                   minHeight: 560,
                 },
-                tier.title === "Standard" &&
+                !!tier.highlight &&
                   ((theme) => ({
                     border: "none",
                     background:
@@ -142,47 +148,56 @@ export default function Pricing() {
                       alignItems: "center",
                       gap: 2,
                     },
-                    tier.title === "Standard"
-                      ? { color: "grey.100" }
-                      : { color: "" },
+                    tier.highlight ? { color: "grey.100" } : { color: "" },
                   ]}
                 >
                   <Typography component="h3" variant="h6">
                     {tier.title}
                   </Typography>
                   <Box sx={{ display: "flex", gap: 1 }}>
-                    {tier.subheader && tier.title === "" && (
-                      <Chip icon={<AutoAwesomeIcon />} label={tier.subheader} />
+                    {tier.subheader && (
+                      <Chip
+                        icon={<AutoAwesomeIcon />}
+                        label={tier.subheader}
+                        size="small"
+                        color="primary"
+                      />
                     )}
                     {tier.comingSoon && (
-                      <Chip label="Coming Soon" color="warning" />
+                      <Chip label="Coming Soon" color="warning" size="small" />
                     )}
                   </Box>
                 </Box>
+
                 <Box
                   sx={[
-                    {
-                      display: "flex",
-                      alignItems: "baseline",
-                    },
-                    tier.title === "Standard"
-                      ? { color: "grey.50" }
-                      : { color: null },
+                    { display: "flex", alignItems: "baseline" },
+                    tier.highlight ? { color: "grey.50" } : {},
                   ]}
                 >
-                  <Typography component="h3" variant="h2">
-                    ${tier.price}
-                  </Typography>
-                  <Typography component="h3" variant="h6">
-                    &nbsp; per month
-                  </Typography>
+                  {tier.isEnterprise ? (
+                    <Typography component="h3" variant="h3" fontWeight={700}>
+                      Custom
+                    </Typography>
+                  ) : (
+                    <>
+                      <Typography component="h3" variant="h2" fontWeight={700}>
+                        ${tier.price}
+                      </Typography>
+                      <Typography component="h3" variant="h6">
+                        &nbsp;/ month
+                      </Typography>
+                    </>
+                  )}
                 </Box>
+
                 <Divider sx={{ my: 2, opacity: 0.8, borderColor: "divider" }} />
+
                 {tier.description.map((line) => (
                   <Box
                     key={line}
                     sx={{
-                      py: 1,
+                      py: 0.75,
                       display: "flex",
                       gap: 1.5,
                       alignItems: "center",
@@ -190,36 +205,36 @@ export default function Pricing() {
                   >
                     <CheckCircleRoundedIcon
                       sx={[
-                        {
-                          width: 20,
-                        },
-                        tier.title === "Standard"
+                        { width: 20 },
+                        tier.highlight
                           ? { color: "primary.light" }
                           : { color: "primary.main" },
                       ]}
                     />
                     <Typography
                       variant="subtitle2"
-                      component={"span"}
-                      sx={[
-                        tier.title === "Standard"
-                          ? { color: "grey.50" }
-                          : { color: null },
-                      ]}
+                      component="span"
+                      sx={[tier.highlight ? { color: "grey.50" } : {}]}
                     >
                       {line}
                     </Typography>
                   </Box>
                 ))}
               </CardContent>
+
               <CardActions sx={{ mt: "auto" }}>
                 <Button
                   fullWidth
                   variant={tier.buttonVariant as "outlined" | "contained"}
                   color={tier.buttonColor as "primary" | "secondary"}
                   disabled={!!tier.comingSoon}
-                  component={tier.title === "Free" ? Link : "button"}
-                  to={tier.title === "Free" ? "/signup" : undefined}
+                  component={tier.isFree ? Link : "button"}
+                  to={tier.isFree ? "/signup" : undefined}
+                  onClick={
+                    tier.isEnterprise
+                      ? () => (window.location.href = "mailto:sales@lucerna.ai")
+                      : undefined
+                  }
                 >
                   {tier.buttonText}
                 </Button>

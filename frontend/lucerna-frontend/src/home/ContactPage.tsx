@@ -56,7 +56,7 @@ export default function ContactPage(props: { disableCustomTheme?: boolean }) {
             <Box mt={4}>
               <Typography variant="body1">
                 <strong>Email:</strong>{" "}
-                <a href="mailto:support@LUCERNA.com">support@LUCERNA.com</a>
+                <a href="mailto:support@lucerna.com">support@lucerna.com</a>
               </Typography>
             </Box>
           </Box>

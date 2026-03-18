@@ -99,7 +99,6 @@ export default function AppAppBar() {
               </MenuItem>
               <MenuItem onClick={() => navigate("/pricing")}>Pricing</MenuItem>
               <MenuItem onClick={() => navigate("/pricing#faqs")}>FAQ</MenuItem>
-              <MenuItem onClick={() => navigate("/blog")}>Blog</MenuItem>
             </Box>
           </Box>
           <Box
@@ -158,7 +157,6 @@ export default function AppAppBar() {
                 <MenuItem>Highlights</MenuItem>
                 <MenuItem>Pricing</MenuItem>
                 <MenuItem>FAQ</MenuItem>
-                <MenuItem>Blog</MenuItem>
                 <Divider sx={{ my: 3 }} />
                 <MenuItem>
                   <Button
