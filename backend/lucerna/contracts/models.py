@@ -141,3 +141,59 @@ class TableCreationLog(models.Model):
     class Meta:
         db_table = "table_creation_log"
         ordering = ["-performed_at"]
+        
+class Stakeholder(models.Model):
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project     = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="stakeholders"
+    )
+    name        = models.CharField(max_length=200)
+    email       = models.EmailField(max_length=254, blank=True)
+    phone       = models.CharField(max_length=50, blank=True)
+    created_at  = models.DateTimeField(default=timezone.now)
+    updated_at  = models.DateTimeField(auto_now=True)
+    created_by  = models.ForeignKey(
+        "users.User", on_delete=models.PROTECT, related_name="created_stakeholders"
+    )
+ 
+    class Meta:
+        db_table = "stakeholder"
+        ordering = ["name"]
+ 
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"
+ 
+ 
+class StakeholderContractAccess(models.Model):
+    """
+    Defines which contract rows a stakeholder can access.
+ 
+    - all_contracts=True  → stakeholder sees every row in the table
+    - all_contracts=False → stakeholder only sees rows whose IDs are in contract_row_ids
+    """
+    id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    stakeholder      = models.OneToOneField(
+        Stakeholder, on_delete=models.CASCADE, related_name="contract_access"
+    )
+    table_definition = models.ForeignKey(
+        TableDefinition, on_delete=models.CASCADE, related_name="stakeholder_access_rules",
+        null=True, blank=True,
+        help_text="Which contract table this access rule applies to. Null = all tables."
+    )
+    all_contracts    = models.BooleanField(
+        default=True,
+        help_text="If True, stakeholder has access to all contract rows."
+    )
+    contract_row_ids = models.JSONField(
+        default=list, blank=True,
+        help_text="List of integer row IDs the stakeholder can access. Only used when all_contracts=False."
+    )
+    updated_at       = models.DateTimeField(auto_now=True)
+ 
+    class Meta:
+        db_table = "stakeholder_contract_access"
+ 
+    def __str__(self):
+        if self.all_contracts:
+            return f"{self.stakeholder.name} → all contracts"
+        return f"{self.stakeholder.name} → {len(self.contract_row_ids)} row(s)"

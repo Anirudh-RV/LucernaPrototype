@@ -3,10 +3,22 @@ from django.http import JsonResponse
 from users.services import UserServices
 from projects.models import Project, UserProjectMapping 
 import uuid
+import os
+
 
 def auth_required(view_fuc):
     @wraps(view_fuc)
     def wrapper( request, *args, **kwargs):
+        agent_key = request.META.get("HTTP_X_BOLNA_AGENT_KEY")
+        if agent_key:
+            if agent_key == os.getenv("BOLNA_AGENT_KEY", ""):
+                return view_fuc( request, *args, **kwargs)
+            else:
+                return JsonResponse({
+                    "status": 0,
+                    "status_description": "missing_token"
+                }, status=400)
+                
         token = request.META.get('HTTP_X_LUCERNA_USER_TOKEN')
 
         if not token:

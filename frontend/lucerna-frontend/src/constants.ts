@@ -1,56 +1,54 @@
 export const ENV = "DEV";
-export const lucerna_ENDPOINT = "http://localhost:8000";
-export const GOVERNOR_ENDPOINT = "http://localhost:8008";
+export const LUCERNA_ENDPOINT = "http://localhost:8000";
 
 export const SIGN_UP_V1_INIT_ENDPOINT =
-  lucerna_ENDPOINT + "/api/user/v1/create/";
+  LUCERNA_ENDPOINT + "/api/user/v1/create/";
 
 export const USER_AUTHENTICATE_V1_ENDPOINT =
-  lucerna_ENDPOINT + "/api/user/v1/authenticate/";
+  LUCERNA_ENDPOINT + "/api/user/v1/authenticate/";
 
 export const USER_FIELDS_EDIT_V1_ENDPOINT =
-  lucerna_ENDPOINT + "/api/user/v1/edit/";
+  LUCERNA_ENDPOINT + "/api/user/v1/edit/";
 
 export const GET_NOTIFICATIONS_V1_INIT_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/notification/list/";
+  LUCERNA_ENDPOINT + "/v1/notification/list/";
 
 export const READ_NOTIFICATIONS_V1_INIT_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/notification/read/";
+  LUCERNA_ENDPOINT + "/v1/notification/read/";
 
 export const PASSWORD_RESET_V1_INIT_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/user/reset-password/init/";
+  LUCERNA_ENDPOINT + "/v1/user/reset-password/init/";
 
 export const PASSWORD_RESET_V1_RESET_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/user/reset-password/reset/";
+  LUCERNA_ENDPOINT + "/v1/user/reset-password/reset/";
 
 export const LOGIN_V1_VERIFY_PASSWORD_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/user/login/verify-password/";
-
-export const USER_PYTHON_ALGORITHM_RUNS_V1_ENDPOINT =
-  GOVERNOR_ENDPOINT + "/v1/user/algorithm/runs/";
+  LUCERNA_ENDPOINT + "/v1/user/login/verify-password/";
 
 export const PASSWORD_UPDATE_V1_ENDPOINT =
-  lucerna_ENDPOINT + "/v1/user/reset-password/update/";
+  LUCERNA_ENDPOINT + "/v1/user/reset-password/update/";
 
 // Project and Agent Endpoints
 export const PROJECT_LIST_V1_ENDPOINT =
-  lucerna_ENDPOINT + "/api/project/v1/list/";
+  LUCERNA_ENDPOINT + "/api/project/v1/list/";
 export const AGENT_KEY_REVOKE_ENDPOINT =
-  lucerna_ENDPOINT + "/api/agent/v1/agents/key/revoke/";
+  LUCERNA_ENDPOINT + "/api/agent/v1/agents/key/revoke/";
 export const PROJECT_LIST_ENDPOINT = PROJECT_LIST_V1_ENDPOINT;
 export const CREATE_PROJECT_ENDPOINT =
-  lucerna_ENDPOINT + "/api/project/v1/create/";
-export const AGENT_LIST_V1_ENDPOINT = lucerna_ENDPOINT + "/api/agent/v1/list/";
+  LUCERNA_ENDPOINT + "/api/project/v1/create/";
+export const AGENT_LIST_V1_ENDPOINT = LUCERNA_ENDPOINT + "/api/agent/v1/list/";
 export const BACKEND_SDK_KEY_CREATE_ENDPOINT =
-  lucerna_ENDPOINT + "/api/project/v1/sdk/backend/key/create/";
+  LUCERNA_ENDPOINT + "/api/project/v1/sdk/backend/key/create/";
 export const BACKEND_SDK_KEY_LIST_ENDPOINT =
-  lucerna_ENDPOINT + "/api/project/v1/sdk/backend/key/list/";
+  LUCERNA_ENDPOINT + "/api/project/v1/sdk/backend/key/list/";
 export const BACKEND_SDK_KEY_REVOKE_ENDPOINT =
-  lucerna_ENDPOINT + "/api/project/v1/sdk/backend/key/revoke/";
+  LUCERNA_ENDPOINT + "/api/project/v1/sdk/backend/key/revoke/";
 export const AGENT_SESSION_LIST_V1_ENDPOINT =
-  lucerna_ENDPOINT + "/api/agent/v1/sessions/list/";
+  LUCERNA_ENDPOINT + "/api/agent/v1/sessions/list/";
 
 export const TABLE_DEFINITIONS_ENDPOINT =
-  lucerna_ENDPOINT + "/api/contracts/table-definitions/";
+  LUCERNA_ENDPOINT + "/api/contracts/table-definitions/";
 
-export const CONTRACTS_BASE_ENDPOINT = lucerna_ENDPOINT + "/api/contracts";
+export const CONTRACTS_BASE_ENDPOINT = LUCERNA_ENDPOINT + "/api/contracts";
+export const BASE_STAKEHOLDERS_ENDPOINT =
+  LUCERNA_ENDPOINT + "/api/contracts/stakeholders";

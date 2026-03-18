@@ -11,10 +11,11 @@ Uses Django's schema_editor so it respects the configured DB backend.
 """
 
 from __future__ import annotations
-
+import json
+from django.http import JsonResponse
 from django.db import connection, models as django_models
 from django.db.models.functions import Now
-from .models import ColumnDefinition, ColumnType, TableCreationLog, TableDefinition
+from .models import ColumnDefinition, ColumnType, TableCreationLog, TableDefinition, Stakeholder, StakeholderContractAccess
 
 
 # ---------------------------------------------------------------------------
@@ -296,4 +297,33 @@ class SchemaUtils:
         with connection.cursor() as cursor:
             cursor.execute(sql, [row_id])
             return cursor.rowcount > 0
- 
+    
+    @staticmethod
+    def parse_body(request):
+        try:
+            return json.loads(request.body), None
+        except json.JSONDecodeError:
+            return None, JsonResponse({"error": "Invalid JSON."}, status=400)
+    
+    @staticmethod
+    def serialize_stakeholder(s: Stakeholder, include_access=True) -> dict:
+        data = {
+            "id":         str(s.id),
+            "project":    str(s.project_id),
+            "name":       s.name,
+            "email":      s.email,
+            "phone":      s.phone,
+            "created_at": s.created_at.isoformat(),
+            "updated_at": s.updated_at.isoformat(),
+        }
+        if include_access:
+            try:
+                access = s.contract_access
+                data["contract_access"] = {
+                    "all_contracts":    access.all_contracts,
+                    "table_definition": str(access.table_definition_id) if access.table_definition_id else None,
+                    "contract_row_ids": access.contract_row_ids,
+                }
+            except StakeholderContractAccess.DoesNotExist:
+                data["contract_access"] = None
+        return data

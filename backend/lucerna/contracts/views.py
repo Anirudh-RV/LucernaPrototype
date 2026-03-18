@@ -11,16 +11,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.text import slugify
 
-from .models import ColumnDefinition, ColumnType, TableDefinition
+from .models import ColumnDefinition, ColumnType, TableDefinition, Stakeholder, StakeholderContractAccess
 from .schema_utils import SchemaUtils
-
-
-def parse_body(request):
-    """Safely parse JSON request body."""
-    try:
-        return json.loads(request.body), None
-    except json.JSONDecodeError:
-        return None, JsonResponse({"error": "Invalid JSON."}, status=400)
+from projects.models import Project
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -50,7 +43,7 @@ class TableDefinitionListCreateView(View):
         return JsonResponse({"count": len(data), "results": data})
 
     def post(self, request):
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
 
@@ -167,7 +160,7 @@ class TableDefinitionDetailView(View):
         if not td:
             return JsonResponse({"error": "Not found."}, status=404)
 
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
 
@@ -270,7 +263,7 @@ class TableRowsView(View):
         if not td.is_created:
             return JsonResponse({"error": "Table has not been created yet."}, status=400)
 
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
 
@@ -302,7 +295,7 @@ class TableRowsView(View):
 class ColumnDefinitionCreateView(View):
 
     def post(self, request):
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
 
@@ -387,7 +380,7 @@ class ColumnDefinitionDetailView(View):
         if not col:
             return JsonResponse({"error": "Not found."}, status=404)
 
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
 
@@ -476,7 +469,7 @@ class TableRowDetailView(View):
         if not td.is_created:
             return JsonResponse({"error": "Table has not been created yet."}, status=400)
  
-        body, err = parse_body(request)
+        body, err = SchemaUtils.parse_body(request)
         if err:
             return err
  
@@ -521,3 +514,129 @@ class TableRowDetailView(View):
             return JsonResponse({"error": "Row not found."}, status=404)
  
         return JsonResponse({"detail": "Row deleted."})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class StakeholderListCreateView(View):
+ 
+    def get(self, request):
+        project_id = request.GET.get("project")
+        qs = Stakeholder.objects.select_related("contract_access").all()
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        return JsonResponse({
+            "count":   qs.count(),
+            "results": [SchemaUtils.serialize_stakeholder(s) for s in qs],
+        })
+ 
+    def post(self, request):
+        body, err = SchemaUtils.parse_body(request)
+        if err:
+            return err
+ 
+        project_id = body.get("project")
+        name       = body.get("name", "").strip()
+        if not project_id or not name:
+            return JsonResponse({"error": "'project' and 'name' are required."}, status=400)
+ 
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return JsonResponse({"error": "Project not found."}, status=404)
+ 
+        stakeholder = Stakeholder.objects.create(
+            project    = project,
+            name       = name,
+            email      = body.get("email", ""),
+            phone      = body.get("phone", ""),
+            created_by = request.user,
+        )
+ 
+        # Create access rule
+        access_data      = body.get("contract_access", {})
+        all_contracts    = access_data.get("all_contracts", True)
+        contract_row_ids = access_data.get("contract_row_ids", [])
+        table_def_id     = access_data.get("table_definition")
+ 
+        table_def = None
+        if table_def_id:
+            try:
+                table_def = TableDefinition.objects.get(id=table_def_id, project=project)
+            except TableDefinition.DoesNotExist:
+                stakeholder.delete()
+                return JsonResponse({"error": "TableDefinition not found."}, status=404)
+ 
+        StakeholderContractAccess.objects.create(
+            stakeholder      = stakeholder,
+            table_definition = table_def,
+            all_contracts    = all_contracts,
+            contract_row_ids = contract_row_ids if not all_contracts else [],
+        )
+ 
+        return JsonResponse(SchemaUtils.serialize_stakeholder(stakeholder), status=201)
+ 
+ 
+@method_decorator(csrf_exempt, name="dispatch")
+class StakeholderDetailView(View):
+ 
+    def _get(self, pk):
+        try:
+            return Stakeholder.objects.select_related("contract_access").get(pk=pk)
+        except Stakeholder.DoesNotExist:
+            return None
+ 
+    def get(self, request, pk):
+        s = self._get(pk)
+        if not s:
+            return JsonResponse({"error": "Not found."}, status=404)
+        return JsonResponse(SchemaUtils.serialize_stakeholder(s))
+ 
+    def patch(self, request, pk):
+        s = self._get(pk)
+        if not s:
+            return JsonResponse({"error": "Not found."}, status=404)
+ 
+        body, err = SchemaUtils.parse_body(request)
+        if err:
+            return err
+ 
+        # Update stakeholder fields
+        for field in ("name", "email", "phone"):
+            if field in body:
+                setattr(s, field, body[field])
+        s.save(update_fields=["name", "email", "phone", "updated_at"])
+ 
+        # Update access rule if provided
+        if "contract_access" in body:
+            access_data = body["contract_access"]
+            access, _ = StakeholderContractAccess.objects.get_or_create(stakeholder=s)
+ 
+            if "all_contracts" in access_data:
+                access.all_contracts = access_data["all_contracts"]
+            if "contract_row_ids" in access_data:
+                access.contract_row_ids = access_data["contract_row_ids"]
+            if "table_definition" in access_data:
+                td_id = access_data["table_definition"]
+                if td_id is None:
+                    access.table_definition = None
+                else:
+                    try:
+                        access.table_definition = TableDefinition.objects.get(id=td_id, project=s.project)
+                    except TableDefinition.DoesNotExist:
+                        return JsonResponse({"error": "TableDefinition not found."}, status=404)
+ 
+            # Clear row IDs if switching to all_contracts
+            if access.all_contracts:
+                access.contract_row_ids = []
+ 
+            access.save()
+ 
+        return JsonResponse(SchemaUtils.serialize_stakeholder(s))
+ 
+    def delete(self, request, pk):
+        s = self._get(pk)
+        if not s:
+            return JsonResponse({"error": "Not found."}, status=404)
+        s.delete()
+        return JsonResponse({"detail": "Deleted."})
+ 
