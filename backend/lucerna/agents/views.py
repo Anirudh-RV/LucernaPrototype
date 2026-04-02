@@ -1,16 +1,5 @@
 """
 stakeholders/agent_auth_views.py
-─────────────────────────────────
-Two unauthenticated endpoints consumed by the Bolna AI agent:
-
-  POST /api/agent/send-otp/
-      body: { "phone": "+14155551234", "contract_id": "USAF-B65B2E07" }
-      → finds stakeholder by phone, verifies contract access,
-        sends OTP email via Brevo, stores OTP in Django cache
-
-  POST /api/agent/verify-otp/
-      body: { "phone": "+14155551234", "contract_id": "USAF-B65B2E07", "otp": "481920" }
-      → validates OTP, returns full contract row + editable column definitions
 """
 
 from __future__ import annotations
@@ -35,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 # ─── Tunables ────────────────────────────────────────────────────────────────
 
-OTP_LENGTH      = 6          # digits
-OTP_TTL_SECONDS = 10 * 60    # 10 minutes
+OTP_LENGTH       = 6
+OTP_TTL_SECONDS  = 10 * 60
 OTP_CACHE_PREFIX = "agent_otp"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -50,68 +39,83 @@ def _generate_otp() -> str:
 
 
 def _normalize_phone(phone: str) -> str:
-    """Strip spaces/dashes for loose matching."""
     return phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
 
 
 def _find_stakeholder_by_phone(phone: str) -> Stakeholder | None:
-    """
-    Match on normalized phone. Tries exact match first, then normalized.
-    """
     normalized = _normalize_phone(phone)
-    # Exact match
-    qs = Stakeholder.objects.filter(phone=phone).select_related("contract_access")
+    qs = Stakeholder.objects.filter(phone=phone)
     if qs.exists():
         return qs.first()
-    # Normalized match — fetch all and compare (phone list is small)
-    for s in Stakeholder.objects.select_related("contract_access").all():
+    for s in Stakeholder.objects.all():
         if _normalize_phone(s.phone) == normalized:
             return s
     return None
 
 
-def _find_contract_row(stakeholder: Stakeholder, contract_id_value: str) -> tuple[TableDefinition | None, dict | None]:
-    """
-    Search all table definitions in the stakeholder's project for a row
-    whose contract_id column matches `contract_id_value`.
+def _find_contract_row(
+    stakeholder: Stakeholder, contract_id_value: str
+) -> tuple[TableDefinition | None, dict | None, StakeholderContractAccess | None]:
+    access_records = StakeholderContractAccess.objects.filter(
+        stakeholder=stakeholder
+    ).select_related("table_definition__project").prefetch_related("table_definition__columns")
 
-    Returns (table_definition, row_dict) or (None, None).
-    """
-    tables = TableDefinition.objects.filter(
-        project=stakeholder.project, is_created=True
-    ).prefetch_related("columns")
+    tables_to_search: list[tuple[TableDefinition, StakeholderContractAccess]] = []
 
-    for td in tables:
-        # Find the contract_id column(s)
+    for access in access_records:
+        if access.table_definition is not None:
+            if not access.table_definition.is_created:
+                continue
+            if access.all_contracts:
+                project_tables = TableDefinition.objects.filter(
+                    project=access.table_definition.project, is_created=True  # ✅
+                ).prefetch_related("columns")
+                for td in project_tables:
+                    tables_to_search.append((td, access))
+            else:
+                tables_to_search.append((access.table_definition, access))
+        else:
+            # table_definition is null — no project to derive, skip
+            continue
+
+    seen_ids: set = set()
+    unique_tables = []
+    for td, access in tables_to_search:
+        if td.id not in seen_ids:
+            seen_ids.add(td.id)
+            unique_tables.append((td, access))
+
+    for td, access in unique_tables:
         contract_id_cols = [
             c.column_name for c in td.columns.all()
             if c.column_type == ColumnType.CONTRACT_ID
         ]
         if not contract_id_cols:
             continue
-
-        # Fetch rows matching this contract_id value
         try:
-            rows = SchemaUtils.fetch_rows(
-                td,
-                filters={contract_id_cols[0]: contract_id_value}
-            )
+            rows = SchemaUtils.fetch_rows(td, filters={contract_id_cols[0]: contract_id_value})
         except Exception:
             continue
-
         if rows:
-            return td, rows[0]
+            return td, rows[0], access
 
-    return None, None
+    return None, None, None
 
 
-def _stakeholder_can_access_row(stakeholder: Stakeholder, row_db_id: int) -> bool:
+def _stakeholder_can_access_row(
+    stakeholder: Stakeholder, row_db_id: int, access: StakeholderContractAccess | None
+) -> bool:
     """
-    Check StakeholderContractAccess for this stakeholder.
+    Use the already-resolved access record from _find_contract_row.
+    Falls back to querying if not provided.
     """
-    try:
-        access = stakeholder.contract_access
-    except StakeholderContractAccess.DoesNotExist:
+    if access is None:
+        # Try to find any access record for this stakeholder
+        access = StakeholderContractAccess.objects.filter(
+            stakeholder=stakeholder
+        ).first()
+
+    if access is None:
         return False
 
     if access.all_contracts:
@@ -121,10 +125,6 @@ def _stakeholder_can_access_row(stakeholder: Stakeholder, row_db_id: int) -> boo
 
 
 def _send_otp_email_brevo(to_email: str, to_name: str, otp: str) -> bool:
-    """
-    Send OTP via Brevo (formerly Sendinblue) transactional email API.
-    Requires BREVO_API_KEY and BREVO_FROM_EMAIL in settings.
-    """
     api_key    = os.getenv("BREVO_API_KEY", "")
     from_email = os.getenv("BREVO_FROM_EMAIL", "admin@zhuhana.com")
     from_name  = os.getenv("BREVO_FROM_NAME", "Lucerna")
@@ -134,9 +134,9 @@ def _send_otp_email_brevo(to_email: str, to_name: str, otp: str) -> bool:
         return False
 
     payload = {
-        "sender":     {"name": from_name, "email": from_email},
-        "to":         [{"email": to_email, "name": to_name}],
-        "subject":    "Your verification code",
+        "sender":      {"name": from_name, "email": from_email},
+        "to":          [{"email": to_email, "name": to_name}],
+        "subject":     "Your verification code",
         "htmlContent": f"""
             <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
               <h2 style="color:#1a1a2e">Your verification code</h2>
@@ -157,10 +157,7 @@ def _send_otp_email_brevo(to_email: str, to_name: str, otp: str) -> bool:
         resp = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             json=payload,
-            headers={
-                "api-key":      api_key,
-                "Content-Type": "application/json",
-            },
+            headers={"api-key": api_key, "Content-Type": "application/json"},
             timeout=10,
         )
         if resp.status_code not in (200, 201):
@@ -173,18 +170,13 @@ def _send_otp_email_brevo(to_email: str, to_name: str, otp: str) -> bool:
 
 
 def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
-    """
-    Return the contract row data annotated with column metadata,
-    split into readable_fields and editable_fields so the agent
-    knows what it can and cannot change.
-    """
-    AUTO_TYPES   = {ColumnType.UUID, ColumnType.CONTRACT_ID}
-    SYSTEM_COLS  = {"id", "created_at", "updated_at"}
+    AUTO_TYPES  = {ColumnType.UUID, ColumnType.CONTRACT_ID}
+    SYSTEM_COLS = {"id", "created_at", "updated_at"}
 
     columns_meta = {c.column_name: c for c in td.columns.all()}
 
-    readable_fields  = {}
-    editable_fields  = {}
+    readable_fields: dict = {}
+    editable_fields: dict = {}
 
     for col_name, value in row.items():
         if col_name in SYSTEM_COLS:
@@ -192,13 +184,11 @@ def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
         col = columns_meta.get(col_name)
         if col is None:
             continue
-
         entry = {
             "value":        value,
             "display_name": col.display_name,
             "type":         col.column_type,
         }
-
         if col.column_type in AUTO_TYPES:
             readable_fields[col_name] = entry
         else:
@@ -213,7 +203,6 @@ def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
         "table_name":      td.name,
         "readable_fields": readable_fields,
         "editable_fields": editable_fields,
-        # ISO timestamps for context
         "created_at":      str(row.get("created_at", "")),
         "updated_at":      str(row.get("updated_at", "")),
     }
@@ -223,27 +212,6 @@ def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SendOTPView(View):
-    """
-    POST /api/agent/send-otp/
-
-    Request body:
-        {
-            "phone":       "+14155551234",
-            "contract_id": "USAF-B65B2E07"
-        }
-
-    Success (200):
-        {
-            "detail": "OTP sent to stakeholder email.",
-            "email_hint": "j***@example.com"   ← masked for voice readback
-        }
-
-    Errors:
-        400 — missing fields
-        403 — stakeholder not found or no access to this contract
-        500 — email send failure
-    """
-
     def post(self, request):
         import json
         try:
@@ -263,40 +231,41 @@ class SendOTPView(View):
         # 1. Resolve stakeholder
         stakeholder = _find_stakeholder_by_phone(phone)
         if not stakeholder:
-            # Deliberately vague — don't reveal whether phone exists
             return JsonResponse(
                 {"error": "Could not verify identity. Please check your details."},
                 status=403,
             )
 
-        if not stakeholder.email:
-            return JsonResponse(
-                {"error": "No email address on file for this stakeholder."},
-                status=403,
-            )
-
-        # 2. Find the contract row
-        td, row = _find_contract_row(stakeholder, contract_id)
+        # 2. Find the contract row + access record
+        td, row, access = _find_contract_row(stakeholder, contract_id)
         if row is None:
             return JsonResponse(
                 {"error": "Contract not found or not accessible."},
                 status=403,
             )
 
-        # 3. Check access
-        if not _stakeholder_can_access_row(stakeholder, row["id"]):
+        # 3. Check row-level access using the resolved access record
+        if not _stakeholder_can_access_row(stakeholder, row["id"], access):
             return JsonResponse(
-                {"error": "Contract not found or not accessible."},
+                {"error": "Contract not accessible."},
                 status=403,
             )
 
-        # 4. Generate + cache OTP
-        otp      = _generate_otp()
+        # 4. Get email from the access record (email now lives on StakeholderContractAccess)
+        email = access.email if access else ""
+        if not email:
+            return JsonResponse(
+                {"error": "No email address on file for this contract."},
+                status=403,
+            )
+
+        # 5. Generate + cache OTP
+        otp       = _generate_otp()
         cache_key = _otp_cache_key(str(stakeholder.id), contract_id)
         cache.set(cache_key, otp, timeout=OTP_TTL_SECONDS)
 
-        # 5. Send email
-        sent = _send_otp_email_brevo(stakeholder.email, stakeholder.name, otp)
+        # 6. Send email
+        sent = _send_otp_email_brevo(email, stakeholder.name, otp)
         if not sent:
             cache.delete(cache_key)
             return JsonResponse(
@@ -304,8 +273,7 @@ class SendOTPView(View):
                 status=500,
             )
 
-        # Mask email for voice readback: j***@example.com
-        parts      = stakeholder.email.split("@")
+        parts      = email.split("@")
         email_hint = parts[0][0] + "***@" + parts[1] if len(parts) == 2 else "***"
 
         return JsonResponse({
@@ -316,36 +284,6 @@ class SendOTPView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class VerifyOTPView(View):
-    """
-    POST /api/agent/verify-otp/
-
-    Request body:
-        {
-            "phone":       "+14155551234",
-            "contract_id": "USAF-B65B2E07",
-            "otp":         "481920"
-        }
-
-    Success (200):
-        {
-            "verified": true,
-            "stakeholder": { "id": "...", "name": "...", "email": "..." },
-            "contract": {
-                "row_id": 1,
-                "contract_id": "USAF-B65B2E07",
-                "table_name": "Contracts",
-                "readable_fields": { ... },
-                "editable_fields": { ... },
-                "created_at": "...",
-                "updated_at": "..."
-            }
-        }
-
-    Errors:
-        400 — missing fields / invalid OTP
-        403 — stakeholder / contract not found or no access
-    """
-
     def post(self, request):
         import json
         try:
@@ -363,7 +301,7 @@ class VerifyOTPView(View):
                 status=400,
             )
 
-        # 1. Resolve stakeholder (same as SendOTP)
+        # 1. Resolve stakeholder
         stakeholder = _find_stakeholder_by_phone(phone)
         if not stakeholder:
             return JsonResponse(
@@ -371,40 +309,38 @@ class VerifyOTPView(View):
                 status=403,
             )
 
-        # 2. Validate OTP from cache
-        cache_key   = _otp_cache_key(str(stakeholder.id), contract_id)
-        cached_otp  = cache.get(cache_key)
+        # 2. Validate OTP
+        cache_key  = _otp_cache_key(str(stakeholder.id), contract_id)
+        cached_otp = cache.get(cache_key)
 
         if cached_otp is None:
             return JsonResponse(
                 {"error": "OTP expired or not found. Please request a new one."},
                 status=400,
             )
-
         if cached_otp != otp:
-            return JsonResponse(
-                {"error": "Invalid OTP."},
-                status=400,
-            )
+            return JsonResponse({"error": "Invalid OTP."}, status=400)
 
-        # 3. Re-verify contract access (defence in depth)
-        td, row = _find_contract_row(stakeholder, contract_id)
-        if row is None or not _stakeholder_can_access_row(stakeholder, row["id"]):
+        # 3. Re-verify contract access (defence in depth) — now returns 3-tuple
+        td, row, access = _find_contract_row(stakeholder, contract_id)
+        if row is None or not _stakeholder_can_access_row(stakeholder, row["id"], access):
             return JsonResponse(
                 {"error": "Contract not found or not accessible."},
                 status=403,
             )
 
-        # 4. Consume the OTP — one-time use
+        # 4. Consume OTP — one-time use
         cache.delete(cache_key)
 
-        # 5. Build response
+        # 5. Build response — email comes from access record, not stakeholder
+        email = access.email if access else ""
+
         return JsonResponse({
             "verified": True,
             "stakeholder": {
                 "id":    str(stakeholder.id),
                 "name":  stakeholder.name,
-                "email": stakeholder.email,
+                "email": email,
                 "phone": stakeholder.phone,
             },
             "contract": _serialize_contract_row(td, row),

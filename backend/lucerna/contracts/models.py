@@ -144,24 +144,20 @@ class TableCreationLog(models.Model):
         
 class Stakeholder(models.Model):
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project     = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="stakeholders"
-    )
     name        = models.CharField(max_length=200)
-    email       = models.EmailField(max_length=254, blank=True)
-    phone       = models.CharField(max_length=50, blank=True)
+    phone       = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
     created_at  = models.DateTimeField(default=timezone.now)
     updated_at  = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(
         "users.User", on_delete=models.PROTECT, related_name="created_stakeholders"
     )
- 
+
     class Meta:
         db_table = "stakeholder"
         ordering = ["name"]
- 
+
     def __str__(self):
-        return f"{self.name} ({self.project.name})"
+        return f"{self.name} ({self.phone})"
  
  
 class StakeholderContractAccess(models.Model):
@@ -172,8 +168,12 @@ class StakeholderContractAccess(models.Model):
     - all_contracts=False → stakeholder only sees rows whose IDs are in contract_row_ids
     """
     id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stakeholder      = models.OneToOneField(
+    stakeholder = models.ForeignKey(
         Stakeholder, on_delete=models.CASCADE, related_name="contract_access"
+    )
+    email            = models.EmailField(
+        max_length=254, blank=True,
+        help_text="Email to send OTP to for this specific access rule."
     )
     table_definition = models.ForeignKey(
         TableDefinition, on_delete=models.CASCADE, related_name="stakeholder_access_rules",

@@ -97,11 +97,11 @@ class TableCreationLogAdmin(admin.ModelAdmin):
 
 @admin.register(Stakeholder)
 class StakeholderAdmin(admin.ModelAdmin):
-    list_display = ("name", "project", "email", "phone", "created_by", "updated_at")
-    search_fields = ("name", "email", "phone", "project__name")
-    list_filter = ("project",)
+    list_display = ("name",  "phone", "created_by", "updated_at")
+    search_fields = ("name", "phone")
+    list_filter = ("phone",)
     inlines = (StakeholderContractAccessInline,)
-    raw_id_fields = ("project", "created_by")
+    raw_id_fields = ("created_by",)
 
 
 @admin.register(StakeholderContractAccess)

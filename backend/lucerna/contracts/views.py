@@ -521,58 +521,75 @@ class StakeholderListCreateView(View):
  
     def get(self, request):
         project_id = request.GET.get("project")
-        qs = Stakeholder.objects.select_related("contract_access").all()
-        if project_id:
-            qs = qs.filter(project_id=project_id)
+        qs = Stakeholder.objects.prefetch_related("contract_access").all()
+        print(f"qs: {qs}")
         return JsonResponse({
             "count":   qs.count(),
-            "results": [SchemaUtils.serialize_stakeholder(s) for s in qs],
+            "results": [SchemaUtils.serialize_stakeholder(s, project_id=project_id) for s in qs],
         })
  
     def post(self, request):
         body, err = SchemaUtils.parse_body(request)
         if err:
             return err
- 
+
         project_id = body.get("project")
         name       = body.get("name", "").strip()
+        phone      = body.get("phone", "").strip()
+
         if not project_id or not name:
             return JsonResponse({"error": "'project' and 'name' are required."}, status=400)
- 
+
         try:
             project = Project.objects.get(id=project_id)
         except Project.DoesNotExist:
             return JsonResponse({"error": "Project not found."}, status=404)
- 
-        stakeholder = Stakeholder.objects.create(
-            project    = project,
-            name       = name,
-            email      = body.get("email", ""),
-            phone      = body.get("phone", ""),
-            created_by = request.user,
-        )
- 
-        # Create access rule
+
+        # Reuse existing stakeholder if phone matches
+        if phone:
+            print("COMING HERE")
+            stakeholder, _ = Stakeholder.objects.get_or_create(
+                phone    = phone,
+                defaults = {
+                    "project":    project,
+                    "name":       name,
+                    "created_by": request.user,
+                }
+            )
+        else:
+            stakeholder = Stakeholder.objects.create(
+                project    = project,
+                name       = name,
+                phone      = phone,
+                created_by = request.user,
+            )
+
+        # Create/update access rule
         access_data      = body.get("contract_access", {})
         all_contracts    = access_data.get("all_contracts", True)
         contract_row_ids = access_data.get("contract_row_ids", [])
         table_def_id     = access_data.get("table_definition")
- 
+        email = access_data.get("email", "")
+
         table_def = None
         if table_def_id:
             try:
                 table_def = TableDefinition.objects.get(id=table_def_id, project=project)
             except TableDefinition.DoesNotExist:
-                stakeholder.delete()
                 return JsonResponse({"error": "TableDefinition not found."}, status=404)
- 
-        StakeholderContractAccess.objects.create(
+
+        print(f"ADDING EMAIL: {email}")
+        print(f"ADDING contract_row_ids: {contract_row_ids}")
+        StakeholderContractAccess.objects.update_or_create(
             stakeholder      = stakeholder,
             table_definition = table_def,
-            all_contracts    = all_contracts,
-            contract_row_ids = contract_row_ids if not all_contracts else [],
+            defaults={
+                "email":            email,
+                "all_contracts":    all_contracts,
+                "contract_row_ids": contract_row_ids if not all_contracts else [],
+            }
         )
- 
+
         return JsonResponse(SchemaUtils.serialize_stakeholder(stakeholder), status=201)
  
  
