@@ -9,6 +9,7 @@ import PrivacyPage from "./home/PrivacyPage";
 import TermsPage from "./home/TermsPage";
 import ContactPage from "./home/ContactPage";
 import Login from "./login/login";
+import StakeholderLogin from "./stakeholder-login/stakeholderLogin";
 import SignUp from "./signup/signup";
 import Dashboard from "./dashboard/Dashboard";
 import { AuthProvider } from "./AuthContext";
@@ -38,6 +39,14 @@ function App() {
             element={
               <PublicRoute>
                 <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/stakeholder-login"
+            element={
+              <PublicRoute>
+                <StakeholderLogin />
               </PublicRoute>
             }
           />

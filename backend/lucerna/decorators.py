@@ -27,15 +27,15 @@ def auth_required(view_fuc):
                 "status_description": "missing_token"
             }, status=400)
 
-        user = UserServices.get_user_from_token(token)
+        entity = UserServices.get_entity_from_token(token)
 
-        if not user:
+        if not entity:
             return JsonResponse({
                 "status": 0,
                 "status_description": "invalid_token"
             }, status=401)
 
-        request.user = user
+        request.user = entity
         return view_fuc( request, *args, **kwargs)
 
     return wrapper

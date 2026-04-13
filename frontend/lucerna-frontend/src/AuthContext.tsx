@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { readJsonResponse } from "./api/readJsonResponse";
 import { USER_AUTHENTICATE_V1_ENDPOINT } from "./constants";
 
 interface User {
@@ -9,6 +10,9 @@ interface User {
   email: string;
   created_at: string;
   updated_at: string;
+  /** Present when the session is a stakeholder (after OTP login or refresh). */
+  role?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -45,8 +49,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        const userFromApi = data.response_body.user;
+        const data = await readJsonResponse(res);
+        const body = data.response_body;
+        const userFromApi =
+          body &&
+          typeof body === "object" &&
+          "user" in body &&
+          body.user &&
+          typeof body.user === "object"
+            ? (body.user as User)
+            : null;
+        if (!userFromApi) {
+          clearAuth();
+          return;
+        }
 
         setUser(userFromApi);
         setAccessToken(token);

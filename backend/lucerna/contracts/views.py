@@ -549,19 +549,17 @@ class StakeholderListCreateView(View):
         if phone:
             print("COMING HERE")
             stakeholder, _ = Stakeholder.objects.get_or_create(
-                phone    = phone,
-                defaults = {
-                    "project":    project,
-                    "name":       name,
+                phone=phone,
+                defaults={
+                    "name": name,
                     "created_by": request.user,
-                }
+                },
             )
         else:
             stakeholder = Stakeholder.objects.create(
-                project    = project,
-                name       = name,
-                phone      = phone,
-                created_by = request.user,
+                name=name,
+                phone=phone,
+                created_by=request.user,
             )
 
         # Create/update access rule
@@ -598,7 +596,7 @@ class StakeholderDetailView(View):
  
     def _get(self, pk):
         try:
-            return Stakeholder.objects.select_related("contract_access").get(pk=pk)
+            return Stakeholder.objects.prefetch_related("contract_access").get(pk=pk)
         except Stakeholder.DoesNotExist:
             return None
  
@@ -618,10 +616,17 @@ class StakeholderDetailView(View):
             return err
  
         # Update stakeholder fields
-        for field in ("name", "email", "phone"):
-            if field in body:
-                setattr(s, field, body[field])
-        s.save(update_fields=["name", "email", "phone", "updated_at"])
+        update_fields: list[str] = []
+        if "name" in body:
+            s.name = body["name"]
+            update_fields.append("name")
+        phone_val = body.get("phone")
+        if phone_val is not None:
+            s.phone = phone_val
+            update_fields.append("phone")
+        if update_fields:
+            update_fields.append("updated_at")
+            s.save(update_fields=update_fields)
  
         # Update access rule if provided
         if "contract_access" in body:
@@ -638,7 +643,12 @@ class StakeholderDetailView(View):
                     access.table_definition = None
                 else:
                     try:
-                        access.table_definition = TableDefinition.objects.get(id=td_id, project=s.project)
+                        if body.get("project"):
+                            access.table_definition = TableDefinition.objects.get(
+                                id=td_id, project_id=body["project"]
+                            )
+                        else:
+                            access.table_definition = TableDefinition.objects.get(id=td_id)
                     except TableDefinition.DoesNotExist:
                         return JsonResponse({"error": "TableDefinition not found."}, status=404)
  

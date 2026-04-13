@@ -145,21 +145,31 @@ class TableCreationLog(models.Model):
 class Stakeholder(models.Model):
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name        = models.CharField(max_length=200)
-    phone       = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
+    phone       = models.CharField(
+        max_length=50,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Globally unique phone for lookups and portal login.",
+    )
     created_at  = models.DateTimeField(default=timezone.now)
     updated_at  = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(
-        "users.User", on_delete=models.PROTECT, related_name="created_stakeholders"
+        "users.User", on_delete=models.SET_NULL, related_name="created_stakeholders", null=True, blank=True
     )
 
     class Meta:
         db_table = "stakeholder"
         ordering = ["name"]
 
+    @property
+    def is_stakeholder(self) -> bool:
+        return True
+
     def __str__(self):
         return f"{self.name} ({self.phone})"
- 
- 
+
+
 class StakeholderContractAccess(models.Model):
     """
     Defines which contract rows a stakeholder can access.

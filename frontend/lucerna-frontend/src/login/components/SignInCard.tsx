@@ -7,7 +7,9 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useNavigate, Link } from "react-router-dom";
+import { readJsonResponse } from "../../api/readJsonResponse";
 import { useAuth } from "../../AuthContext";
+import { LOGIN_V1_ENDPOINT } from "../../constants";
 import ForgotPassword from "./ForgotPassword";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -28,8 +30,6 @@ const Card = styled(MuiCard)(({ theme }) => ({
       "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
   }),
 }));
-
-const LOGIN_ENDPOINT = "http://localhost:8000/api/user/v1/login/";
 
 export default function SignInCard() {
   const [emailError, setEmailError] = React.useState(false);
@@ -86,30 +86,51 @@ export default function SignInCard() {
     };
 
     try {
-      const res = await fetch(LOGIN_ENDPOINT, {
+      const res = await fetch(LOGIN_V1_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const result = await res.json();
+      const result = await readJsonResponse(res);
 
-      if (res.ok && result.status === 1 && result.response) {
+      const loginResp = result.response;
+      const jwtToken =
+        loginResp &&
+        typeof loginResp === "object" &&
+        "jwt_token" in loginResp &&
+        typeof (loginResp as { jwt_token?: unknown }).jwt_token === "string"
+          ? (loginResp as { jwt_token: string }).jwt_token
+          : undefined;
+      const userPayload =
+        loginResp &&
+        typeof loginResp === "object" &&
+        "user" in loginResp &&
+        loginResp.user &&
+        typeof loginResp.user === "object"
+          ? (loginResp.user as Parameters<typeof setAuth>[0])
+          : undefined;
+
+      if (res.ok && result.status === 1 && userPayload && jwtToken) {
         // Successful login
-        setAuth(result.response.user, result.response.jwt_token);
+        setAuth(userPayload, jwtToken);
         navigate("/dashboard");
       } else {
         setPasswordError(true);
         setPasswordErrorMessage(
           result.status_description === "login_failed"
             ? "Incorrect email or password"
-            : result.status_description || "Login failed. Please try again.",
+            : typeof result.status_description === "string"
+              ? result.status_description
+              : "Login failed. Please try again.",
         );
       }
     } catch (err) {
-      console.error("Network error", err);
+      console.error("Login request failed", err);
       setPasswordError(true);
-      setPasswordErrorMessage("Network error. Please try again.");
+      setPasswordErrorMessage(
+        err instanceof Error ? err.message : "Network error. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }

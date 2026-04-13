@@ -97,7 +97,7 @@ class TableCreationLogAdmin(admin.ModelAdmin):
 
 @admin.register(Stakeholder)
 class StakeholderAdmin(admin.ModelAdmin):
-    list_display = ("name",  "phone", "created_by", "updated_at")
+    list_display = ("name", "phone", "created_by", "updated_at")
     search_fields = ("name", "phone")
     list_filter = ("phone",)
     inlines = (StakeholderContractAccessInline,)
@@ -108,7 +108,7 @@ class StakeholderAdmin(admin.ModelAdmin):
 class StakeholderContractAccessAdmin(admin.ModelAdmin):
     list_display = ("stakeholder", "table_definition", "all_contracts", "rows_count", "updated_at")
     list_filter = ("all_contracts", "table_definition")
-    search_fields = ("stakeholder__name", "stakeholder__email", "table_definition__name")
+    search_fields = ("stakeholder__name", "email", "table_definition__name")
     readonly_fields = ("updated_at",)
 
     def rows_count(self, obj):

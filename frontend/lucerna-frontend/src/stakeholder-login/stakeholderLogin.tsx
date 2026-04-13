@@ -1,17 +1,16 @@
 import { useEffect } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
-import { Link as RouterLink } from "react-router-dom";
 import AppTheme from "../shared-ui-theme/AppTheme";
 import ColorModeIconDropdown from "../shared-ui-theme/ColorModeIconDropdown";
-import SignInCard from "./components/SignInCard";
-import Content from "./components/Content";
+import Content from "../login/components/Content";
+import StakeholderSignInCard from "./components/StakeholderSignInCard";
 
-export default function Login(props: { disableCustomTheme?: boolean }) {
+export default function StakeholderLogin(props: {
+  disableCustomTheme?: boolean;
+}) {
   useEffect(() => {
-    document.title = "Log in";
+    document.title = "Stakeholder sign in";
   }, []);
 
   return (
@@ -67,15 +66,7 @@ export default function Login(props: { disableCustomTheme?: boolean }) {
             }}
           >
             <Content />
-            <Stack spacing={1.5} alignItems="center">
-              <SignInCard />
-              <Typography variant="body2" color="text.secondary" textAlign="center">
-                Stakeholder?{" "}
-                <Link component={RouterLink} to="/stakeholder-login" underline="hover">
-                  Sign in with email code
-                </Link>
-              </Typography>
-            </Stack>
+            <StakeholderSignInCard />
           </Stack>
         </Stack>
       </Stack>

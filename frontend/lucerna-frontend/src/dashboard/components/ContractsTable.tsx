@@ -1477,8 +1477,7 @@ export default function ContractsTable({
                           disabled={deletingRowIdx === rowIdx}
                           sx={{
                             color: "text.disabled",
-                            "&:hover": { color: "error.main" },
-                            opacity: 0.4,
+                          
                             "&:hover": { opacity: 1, color: "error.main" },
                           }}
                         >

@@ -1,11 +1,20 @@
 export const ENV = "DEV";
-export const LUCERNA_ENDPOINT = "http://localhost:8000";
+
+/** Django API origin. Set `VITE_LUCERNA_ENDPOINT` in `.env` if the API is not on localhost:8000. */
+export const LUCERNA_ENDPOINT = (
+  import.meta.env.VITE_LUCERNA_ENDPOINT ?? "http://localhost:8000"
+).replace(/\/$/, "");
 
 export const SIGN_UP_V1_INIT_ENDPOINT =
   LUCERNA_ENDPOINT + "/api/user/v1/create/";
 
 export const USER_AUTHENTICATE_V1_ENDPOINT =
   LUCERNA_ENDPOINT + "/api/user/v1/authenticate/";
+
+export const STAKEHOLDER_LOGIN_V1_ENDPOINT =
+  LUCERNA_ENDPOINT + "/api/user/v1/stakeholder-login/";
+
+export const LOGIN_V1_ENDPOINT = LUCERNA_ENDPOINT + "/api/user/v1/login/";
 
 export const USER_FIELDS_EDIT_V1_ENDPOINT =
   LUCERNA_ENDPOINT + "/api/user/v1/edit/";

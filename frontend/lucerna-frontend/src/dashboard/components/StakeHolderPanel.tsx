@@ -41,6 +41,7 @@ import {
   BASE_STAKEHOLDERS_ENDPOINT,
   CONTRACTS_BASE_ENDPOINT,
 } from "../../constants";
+import { readJsonResponse } from "../../api/readJsonResponse";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ interface ContractAccess {
 
 interface Stakeholder {
   id: string;
-  project: string;
+  project?: string;
   name: string;
   phone: string;
   contract_access: ContractAccess[];
@@ -459,9 +460,17 @@ function StakeholderDialog({
           },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
+        const data = (await readJsonResponse(res)) as {
+          error?: string;
+          id?: string;
+          name?: string;
+          phone?: string;
+          contract_access?: ContractAccess[];
+          created_at?: string;
+          updated_at?: string;
+        };
         if (data.error) throw new Error(data.error);
-        if (i === 0) savedStakeholder = data;
+        if (i === 0 && data.id) savedStakeholder = data as Stakeholder;
       }
 
       if (savedStakeholder) onSave(savedStakeholder);
@@ -600,6 +609,7 @@ function StakeholderDialog({
                 value={entry.email}
                 onChange={(e) => updateEntry(idx, { email: e.target.value })}
                 sx={{ mb: 1.5 }}
+                helperText="Used for alerts and must match the address used for stakeholder sign-in OTP (email or phone + this email at /stakeholder-login)."
                 InputProps={{
                   startAdornment: (
                     <EmailIcon
@@ -798,7 +808,7 @@ export default function StakeholderPanel({
           headers: { "X-LUCERNA-USER-TOKEN": accessToken },
         },
       );
-      const data = await res.json();
+      const data = (await readJsonResponse(res)) as { results?: Stakeholder[] };
       setStakeholders(data.results ?? []);
     } catch (e: any) {
       setError(e.message);
@@ -815,7 +825,7 @@ export default function StakeholderPanel({
         `${CONTRACTS_BASE_ENDPOINT}/table-definitions/?project=${projectId}`,
         { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
       );
-      const data = await res.json();
+      const data = (await readJsonResponse(res)) as { results?: TableDef[] };
       const defs: TableDef[] = data.results ?? [];
       setTableDefs(defs);
 
@@ -832,7 +842,9 @@ export default function StakeholderPanel({
                 `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${d.id}/rows/`,
                 { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
               );
-              const rd = await r.json();
+              const rd = (await readJsonResponse(r)) as {
+                results?: ContractRow[];
+              };
               rowMap[d.id] = rd.results ?? [];
             } catch {}
           }),

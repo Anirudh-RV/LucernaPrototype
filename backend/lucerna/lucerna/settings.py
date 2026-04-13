@@ -129,6 +129,10 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Email (console backend for local OTP visibility)
+
+BREVO_FROM_EMAIL= os.getenv("BREVO_FROM_EMAIL", "admin@zhuhana.com")
+BREVO_FROM_NAME= os.getenv("BREVO_FROM_NAME", "Lucerna")
 
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
