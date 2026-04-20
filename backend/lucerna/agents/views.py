@@ -169,17 +169,30 @@ def _send_otp_email_brevo(to_email: str, to_name: str, otp: str) -> bool:
         return False
 
 
-def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
+def _serialize_contract_row(
+    td: TableDefinition, row: dict, access: StakeholderContractAccess | None = None
+) -> dict:
     AUTO_TYPES  = {ColumnType.UUID, ColumnType.CONTRACT_ID}
     SYSTEM_COLS = {"id", "created_at", "updated_at"}
 
     columns_meta = {c.column_name: c for c in td.columns.all()}
+
+    # Column-level filtering
+    allowed_set: set | None = None
+    if access and not access.all_columns and access.allowed_columns:
+        allowed_set = set(access.allowed_columns)
+        # Always allow auto-type columns through for identification
+        allowed_set |= {name for name, c in columns_meta.items() if c.column_type in AUTO_TYPES}
+
+    is_reader = access and access.role == "reader"
 
     readable_fields: dict = {}
     editable_fields: dict = {}
 
     for col_name, value in row.items():
         if col_name in SYSTEM_COLS:
+            continue
+        if allowed_set is not None and col_name not in allowed_set:
             continue
         col = columns_meta.get(col_name)
         if col is None:
@@ -189,7 +202,7 @@ def _serialize_contract_row(td: TableDefinition, row: dict) -> dict:
             "display_name": col.display_name,
             "type":         col.column_type,
         }
-        if col.column_type in AUTO_TYPES:
+        if col.column_type in AUTO_TYPES or is_reader:
             readable_fields[col_name] = entry
         else:
             editable_fields[col_name] = entry
@@ -343,5 +356,8 @@ class VerifyOTPView(View):
                 "email": email,
                 "phone": stakeholder.phone,
             },
-            "contract": _serialize_contract_row(td, row),
+            "contract": {
+                **_serialize_contract_row(td, row, access=access),
+                "role": access.role if access else "reader",
+            },
         })

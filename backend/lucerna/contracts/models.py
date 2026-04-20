@@ -29,6 +29,17 @@ class ColumnType(models.TextChoices):
     CONTRACT_ID = "contract_id", "Contract ID (auto-prefixed char)"
 
 
+class StakeholderType(models.TextChoices):
+    CONTRACT_OWNER = "contract_owner", "Contract Owner"
+    INTERNAL       = "internal",       "Internal"
+    EXTERNAL       = "external",       "External"
+
+
+class AccessRole(models.TextChoices):
+    READER = "reader", "Reader"
+    WRITER = "writer", "Writer"
+
+
 # ---------------------------------------------------------------------------
 # TableDefinition  — one per "contract table" the customer configures
 # ---------------------------------------------------------------------------
@@ -146,6 +157,11 @@ class Stakeholder(models.Model):
     id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name        = models.CharField(max_length=200)
     phone       = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
+    stakeholder_type = models.CharField(
+        max_length=20,
+        choices=StakeholderType.choices,
+        default=StakeholderType.EXTERNAL,
+    )
     created_at  = models.DateTimeField(default=timezone.now)
     updated_at  = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(
@@ -187,6 +203,19 @@ class StakeholderContractAccess(models.Model):
     contract_row_ids = models.JSONField(
         default=list, blank=True,
         help_text="List of integer row IDs the stakeholder can access. Only used when all_contracts=False."
+    )
+    role = models.CharField(
+        max_length=10,
+        choices=AccessRole.choices,
+        default=AccessRole.READER,
+    )
+    all_columns = models.BooleanField(
+        default=True,
+        help_text="If True, stakeholder can see all columns.",
+    )
+    allowed_columns = models.JSONField(
+        default=list, blank=True,
+        help_text="List of column_name strings visible when all_columns=False.",
     )
     updated_at       = models.DateTimeField(auto_now=True)
  

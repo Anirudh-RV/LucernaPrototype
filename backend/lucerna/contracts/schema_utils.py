@@ -308,16 +308,16 @@ class SchemaUtils:
     @staticmethod
     def serialize_stakeholder(s: Stakeholder, include_access=True, project_id=None) -> dict:
         data = {
-            "id":         str(s.id),
-            "name":       s.name,
-            "phone":      s.phone,
-            "created_at": s.created_at.isoformat(),
-            "updated_at": s.updated_at.isoformat(),
+            "id":               str(s.id),
+            "name":             s.name,
+            "phone":            s.phone,
+            "stakeholder_type": s.stakeholder_type,
+            "created_at":       s.created_at.isoformat(),
+            "updated_at":       s.updated_at.isoformat(),
         }
         if include_access:
             access_qs = s.contract_access.all()
             if project_id:
-                # Filter to access rules whose table belongs to this project
                 access_qs = access_qs.filter(
                     table_definition__project_id=project_id
                 )
@@ -328,6 +328,9 @@ class SchemaUtils:
                     "all_contracts":    a.all_contracts,
                     "table_definition": str(a.table_definition_id) if a.table_definition_id else None,
                     "contract_row_ids": a.contract_row_ids,
+                    "role":             a.role,
+                    "all_columns":      a.all_columns,
+                    "allowed_columns":  a.allowed_columns,
                     "updated_at":       a.updated_at.isoformat(),
                 }
                 for a in access_qs

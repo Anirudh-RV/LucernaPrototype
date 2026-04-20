@@ -533,9 +533,10 @@ class StakeholderListCreateView(View):
         if err:
             return err
 
-        project_id = body.get("project")
-        name       = body.get("name", "").strip()
-        phone      = body.get("phone", "").strip()
+        project_id       = body.get("project")
+        name             = body.get("name", "").strip()
+        phone            = body.get("phone", "").strip()
+        stakeholder_type = body.get("stakeholder_type", "external")
 
         if not project_id or not name:
             return JsonResponse({"error": "'project' and 'name' are required."}, status=400)
@@ -547,21 +548,20 @@ class StakeholderListCreateView(View):
 
         # Reuse existing stakeholder if phone matches
         if phone:
-            print("COMING HERE")
             stakeholder, _ = Stakeholder.objects.get_or_create(
                 phone    = phone,
                 defaults = {
-                    "project":    project,
-                    "name":       name,
-                    "created_by": request.user,
+                    "name":             name,
+                    "stakeholder_type": stakeholder_type,
+                    "created_by":       request.user,
                 }
             )
         else:
             stakeholder = Stakeholder.objects.create(
-                project    = project,
-                name       = name,
-                phone      = phone,
-                created_by = request.user,
+                name             = name,
+                phone            = phone,
+                stakeholder_type = stakeholder_type,
+                created_by       = request.user,
             )
 
         # Create/update access rule
@@ -569,7 +569,10 @@ class StakeholderListCreateView(View):
         all_contracts    = access_data.get("all_contracts", True)
         contract_row_ids = access_data.get("contract_row_ids", [])
         table_def_id     = access_data.get("table_definition")
-        email = access_data.get("email", "")
+        email            = access_data.get("email", "")
+        role             = access_data.get("role", "reader")
+        all_columns      = access_data.get("all_columns", True)
+        allowed_columns  = access_data.get("allowed_columns", [])
 
         table_def = None
         if table_def_id:
@@ -578,8 +581,6 @@ class StakeholderListCreateView(View):
             except TableDefinition.DoesNotExist:
                 return JsonResponse({"error": "TableDefinition not found."}, status=404)
 
-        print(f"ADDING EMAIL: {email}")
-        print(f"ADDING contract_row_ids: {contract_row_ids}")
         StakeholderContractAccess.objects.update_or_create(
             stakeholder      = stakeholder,
             table_definition = table_def,
@@ -587,6 +588,9 @@ class StakeholderListCreateView(View):
                 "email":            email,
                 "all_contracts":    all_contracts,
                 "contract_row_ids": contract_row_ids if not all_contracts else [],
+                "role":             role,
+                "all_columns":      all_columns,
+                "allowed_columns":  allowed_columns if not all_columns else [],
             }
         )
 
@@ -618,10 +622,12 @@ class StakeholderDetailView(View):
             return err
  
         # Update stakeholder fields
-        for field in ("name", "email", "phone"):
+        update_fields = ["updated_at"]
+        for field in ("name", "phone", "stakeholder_type"):
             if field in body:
                 setattr(s, field, body[field])
-        s.save(update_fields=["name", "email", "phone", "updated_at"])
+                update_fields.append(field)
+        s.save(update_fields=update_fields)
  
         # Update access rule if provided
         if "contract_access" in body:
@@ -638,14 +644,21 @@ class StakeholderDetailView(View):
                     access.table_definition = None
                 else:
                     try:
-                        access.table_definition = TableDefinition.objects.get(id=td_id, project=s.project)
+                        access.table_definition = TableDefinition.objects.get(id=td_id)
                     except TableDefinition.DoesNotExist:
                         return JsonResponse({"error": "TableDefinition not found."}, status=404)
- 
-            # Clear row IDs if switching to all_contracts
+            if "role" in access_data:
+                access.role = access_data["role"]
+            if "all_columns" in access_data:
+                access.all_columns = access_data["all_columns"]
+            if "allowed_columns" in access_data:
+                access.allowed_columns = access_data["allowed_columns"]
+
             if access.all_contracts:
                 access.contract_row_ids = []
- 
+            if access.all_columns:
+                access.allowed_columns = []
+
             access.save()
  
         return JsonResponse(SchemaUtils.serialize_stakeholder(s))

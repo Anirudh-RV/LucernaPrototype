@@ -50,6 +50,9 @@ interface ContractAccess {
   all_contracts: boolean;
   table_definition: string | null;
   contract_row_ids: number[];
+  role: "reader" | "writer";
+  all_columns: boolean;
+  allowed_columns: string[];
   updated_at: string;
 }
 
@@ -58,6 +61,7 @@ interface Stakeholder {
   project: string;
   name: string;
   phone: string;
+  stakeholder_type: "contract_owner" | "internal" | "external";
   contract_access: ContractAccess[];
   created_at: string;
   updated_at: string;
@@ -106,30 +110,40 @@ function avatarColor(name: string) {
 
 function AccessBadge({ access }: { access: ContractAccess | null }) {
   if (!access) return null;
-  if (access.all_contracts) {
-    return (
-      <Chip
-        icon={<LockOpenIcon sx={{ fontSize: "12px !important" }} />}
-        label="All contracts"
-        size="small"
-        color="success"
-        variant="outlined"
-        sx={{ height: 20, fontSize: 10, "& .MuiChip-label": { px: 0.75 } }}
-      />
-    );
-  }
-  const count = access.contract_row_ids.length;
+  const chipSx = { height: 20, fontSize: 10, "& .MuiChip-label": { px: 0.75 } };
   return (
-    <Chip
-      icon={<LockIcon sx={{ fontSize: "12px !important" }} />}
-      label={
-        count === 0 ? "No access" : `${count} contract${count !== 1 ? "s" : ""}`
-      }
-      size="small"
-      color={count === 0 ? "error" : "warning"}
-      variant="outlined"
-      sx={{ height: 20, fontSize: 10, "& .MuiChip-label": { px: 0.75 } }}
-    />
+    <>
+      <Chip
+        label={access.role === "writer" ? "Writer" : "Reader"}
+        size="small"
+        color={access.role === "writer" ? "primary" : "default"}
+        variant="outlined"
+        sx={chipSx}
+      />
+      {access.all_contracts ? (
+        <Chip
+          icon={<LockOpenIcon sx={{ fontSize: "12px !important" }} />}
+          label="All contracts"
+          size="small"
+          color="success"
+          variant="outlined"
+          sx={chipSx}
+        />
+      ) : (
+        <Chip
+          icon={<LockIcon sx={{ fontSize: "12px !important" }} />}
+          label={
+            access.contract_row_ids.length === 0
+              ? "No access"
+              : `${access.contract_row_ids.length} contract${access.contract_row_ids.length !== 1 ? "s" : ""}`
+          }
+          size="small"
+          color={access.contract_row_ids.length === 0 ? "error" : "warning"}
+          variant="outlined"
+          sx={chipSx}
+        />
+      )}
+    </>
   );
 }
 
@@ -224,6 +238,19 @@ function StakeholderCard({
         )}
 
         <Box sx={{ mt: 0.75, display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+          <Chip
+            label={
+              stakeholder.stakeholder_type === "contract_owner"
+                ? "Owner"
+                : stakeholder.stakeholder_type === "internal"
+                  ? "Internal"
+                  : "External"
+            }
+            size="small"
+            color={stakeholder.stakeholder_type === "contract_owner" ? "primary" : "default"}
+            variant="outlined"
+            sx={{ height: 20, fontSize: 10, "& .MuiChip-label": { px: 0.75 } }}
+          />
           <AccessBadge access={relevantAccess} />
           {/* Show count badge if stakeholder has access to multiple tables */}
           {stakeholder.contract_access.length > 1 && (
@@ -314,15 +341,19 @@ function StakeholderDialog({
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [stakeholderType, setStakeholderType] = useState<
+    "contract_owner" | "internal" | "external"
+  >("external");
 
-  // One access entry per table the user configures in this dialog
-  // Shape: { tableDefId, email, allContracts, selectedRowIds }
   const [accessEntries, setAccessEntries] = useState<
     {
       tableDefId: string;
       email: string;
       allContracts: boolean;
       selectedRowIds: number[];
+      role: "reader" | "writer";
+      allColumns: boolean;
+      allowedColumns: string[];
     }[]
   >([]);
 
@@ -335,18 +366,22 @@ function StakeholderDialog({
     if (initial) {
       setName(initial.name);
       setPhone(initial.phone);
+      setStakeholderType(initial.stakeholder_type ?? "external");
       setAccessEntries(
         initial.contract_access.map((a) => ({
           tableDefId: a.table_definition ?? "",
           email: a.email ?? "",
           allContracts: a.all_contracts,
           selectedRowIds: a.contract_row_ids,
+          role: a.role ?? "reader",
+          allColumns: a.all_columns ?? true,
+          allowedColumns: a.allowed_columns ?? [],
         })),
       );
     } else {
       setName("");
       setPhone("");
-      // Default: one entry for the first table if available
+      setStakeholderType("external");
       setAccessEntries(
         tableDefs.length > 0
           ? [
@@ -355,6 +390,9 @@ function StakeholderDialog({
                 email: "",
                 allContracts: true,
                 selectedRowIds: [],
+                role: "reader",
+                allColumns: true,
+                allowedColumns: [],
               },
             ]
           : [],
@@ -370,6 +408,9 @@ function StakeholderDialog({
       email: string;
       allContracts: boolean;
       selectedRowIds: number[];
+      role: "reader" | "writer";
+      allColumns: boolean;
+      allowedColumns: string[];
     }>,
   ) => {
     setAccessEntries((prev) =>
@@ -388,6 +429,9 @@ function StakeholderDialog({
         email: "",
         allContracts: true,
         selectedRowIds: [],
+        role: "reader",
+        allColumns: true,
+        allowedColumns: [],
       },
     ]);
   };
@@ -437,11 +481,15 @@ function StakeholderDialog({
           project: projectId,
           name: name.trim(),
           phone: phone.trim(),
+          stakeholder_type: stakeholderType,
           contract_access: {
             email: entry.email.trim(),
             all_contracts: entry.allContracts,
             table_definition: entry.tableDefId || null,
             contract_row_ids: entry.allContracts ? [] : entry.selectedRowIds,
+            role: entry.role,
+            all_columns: entry.allColumns,
+            allowed_columns: entry.allColumns ? [] : entry.allowedColumns,
           },
         };
 
@@ -525,6 +573,22 @@ function StakeholderDialog({
               ),
             }}
           />
+          <FormControl size="small" fullWidth>
+            <InputLabel>Stakeholder Type</InputLabel>
+            <Select
+              value={stakeholderType}
+              input={<OutlinedInput label="Stakeholder Type" />}
+              onChange={(e) =>
+                setStakeholderType(
+                  e.target.value as "contract_owner" | "internal" | "external",
+                )
+              }
+            >
+              <MenuItem value="contract_owner">Contract Owner</MenuItem>
+              <MenuItem value="internal">Internal</MenuItem>
+              <MenuItem value="external">External</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
 
         <Divider sx={{ mb: 2 }}>
@@ -608,6 +672,23 @@ function StakeholderDialog({
                   ),
                 }}
               />
+
+              {/* Role selector */}
+              <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+                <InputLabel>Access Role</InputLabel>
+                <Select
+                  value={entry.role}
+                  input={<OutlinedInput label="Access Role" />}
+                  onChange={(e) =>
+                    updateEntry(idx, {
+                      role: e.target.value as "reader" | "writer",
+                    })
+                  }
+                >
+                  <MenuItem value="reader">Reader — View only</MenuItem>
+                  <MenuItem value="writer">Writer — Full access</MenuItem>
+                </Select>
+              </FormControl>
 
               <FormControlLabel
                 control={
@@ -722,6 +803,124 @@ function StakeholderDialog({
                   )}
                 </Box>
               )}
+
+              {/* Column access */}
+              <Divider sx={{ my: 1.5 }} />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={entry.allColumns}
+                    onChange={(e) =>
+                      updateEntry(idx, {
+                        allColumns: e.target.checked,
+                        allowedColumns: e.target.checked
+                          ? []
+                          : entry.allowedColumns,
+                      })
+                    }
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {entry.allColumns
+                      ? "Access to all columns"
+                      : "Access to specific columns only"}
+                  </Typography>
+                }
+                sx={{ mb: 1 }}
+              />
+
+              {!entry.allColumns && td && td.columns && (
+                <Box
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1.5,
+                    maxHeight: 180,
+                    overflowY: "auto",
+                  }}
+                >
+                  {td.columns
+                    .filter(
+                      (c) =>
+                        c.column_type !== "uuid" &&
+                        c.column_type !== "contract_id",
+                    )
+                    .map((col) => {
+                      const selected = entry.allowedColumns.includes(
+                        col.column_name,
+                      );
+                      return (
+                        <Box
+                          key={col.column_name}
+                          onClick={() => {
+                            const next = selected
+                              ? entry.allowedColumns.filter(
+                                  (c) => c !== col.column_name,
+                                )
+                              : [...entry.allowedColumns, col.column_name];
+                            updateEntry(idx, { allowedColumns: next });
+                          }}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            px: 1.5,
+                            py: 0.75,
+                            cursor: "pointer",
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            "&:last-child": { borderBottom: "none" },
+                            bgcolor: selected
+                              ? "action.selected"
+                              : "transparent",
+                            "&:hover": { bgcolor: "action.hover" },
+                            transition: "background-color 0.1s",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: 0.5,
+                              border: "2px solid",
+                              borderColor: selected
+                                ? "primary.main"
+                                : "action.disabled",
+                              bgcolor: selected
+                                ? "primary.main"
+                                : "transparent",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                              transition: "all 0.1s",
+                            }}
+                          >
+                            {selected && (
+                              <CheckIcon
+                                sx={{ fontSize: 12, color: "#fff" }}
+                              />
+                            )}
+                          </Box>
+                          <Typography sx={{ fontSize: 13 }}>
+                            {col.display_name}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: 11,
+                              color: "text.disabled",
+                              ml: "auto",
+                            }}
+                          >
+                            {col.column_name}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                </Box>
+              )}
             </Box>
           );
         })}
@@ -816,27 +1015,43 @@ export default function StakeholderPanel({
         { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
       );
       const data = await res.json();
-      const defs: TableDef[] = data.results ?? [];
-      setTableDefs(defs);
+      const listDefs: TableDef[] = data.results ?? [];
 
-      if (defs.length > 0) setSelectedTableDefId(defs[0].id);
+      if (listDefs.length > 0) setSelectedTableDefId(listDefs[0].id);
 
-      // Fetch rows for each created table
+      // Fetch detail (includes columns) + rows for each created table
       const rowMap: Record<string, ContractRow[]> = {};
-      await Promise.all(
-        defs
-          .filter((d) => d.is_created)
-          .map(async (d) => {
-            try {
-              const r = await fetch(
-                `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${d.id}/rows/`,
-                { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
-              );
-              const rd = await r.json();
-              rowMap[d.id] = rd.results ?? [];
-            } catch {}
-          }),
+      const detailedDefs = await Promise.all(
+        listDefs.map(async (d) => {
+          try {
+            const detailRes = await fetch(
+              `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${d.id}/`,
+              { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
+            );
+            const detail = await detailRes.json();
+            const def: TableDef = {
+              ...d,
+              columns: detail.columns ?? [],
+            };
+
+            if (d.is_created) {
+              try {
+                const r = await fetch(
+                  `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${d.id}/rows/`,
+                  { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
+                );
+                const rd = await r.json();
+                rowMap[d.id] = rd.results ?? [];
+              } catch {}
+            }
+
+            return def;
+          } catch {
+            return d;
+          }
+        }),
       );
+      setTableDefs(detailedDefs);
       setContractRowsByTable(rowMap);
     } catch {}
   }, [projectId, accessToken]);
