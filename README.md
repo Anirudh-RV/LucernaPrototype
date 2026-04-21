@@ -1,2 +1,2 @@
 # LucernaPrototype
-Prototype for Contract Management using AI Voice agents
+Prototype for Contract Management
