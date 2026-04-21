@@ -67,7 +67,7 @@ class TableDefinition(models.Model):
     def save(self, *args, **kwargs):
         # Build a deterministic, safe PG table name from project id + slug
         if not self.pg_table_name:
-            safe_project = str(self.project_id).replace("-", "") # type: ignore
+            safe_project = str(self.project_id).replace("-", "")  # type: ignore
             self.pg_table_name = f"dyn_{safe_project[:12]}_{self.slug}"[:63]
         super().save(*args, **kwargs)
 
@@ -141,14 +141,43 @@ class TableCreationLog(models.Model):
     class Meta:
         db_table = "table_creation_log"
         ordering = ["-performed_at"]
-        
+
+
+# ---------------------------------------------------------------------------
+# New choices — Stakeholder type and access role
+# ---------------------------------------------------------------------------
+
+class StakeholderType(models.TextChoices):
+    CONTRACT_OWNER = "contract_owner", "Contract Owner (Contracting Officer)"
+    EXTERNAL       = "external",       "External Stakeholder"
+    INTERNAL       = "internal",       "Internal Stakeholder"
+
+
+class AccessRole(models.TextChoices):
+    READER = "reader", "Reader (read-only)"
+    WRITER = "writer", "Writer (add / edit / delete)"
+
+
+# ---------------------------------------------------------------------------
+# Stakeholder — unchanged fields preserved; type + email added
+# ---------------------------------------------------------------------------
+
 class Stakeholder(models.Model):
-    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name        = models.CharField(max_length=200)
-    phone       = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
-    created_at  = models.DateTimeField(default=timezone.now)
-    updated_at  = models.DateTimeField(auto_now=True)
-    created_by  = models.ForeignKey(
+    id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name             = models.CharField(max_length=200)
+    # email was previously only on the access rule; it now lives on the
+    # stakeholder so it can be shown/edited on the "More details" page.
+    email            = models.EmailField(max_length=254, blank=True)
+    phone            = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
+    stakeholder_type = models.CharField(
+        max_length=20,
+        choices=StakeholderType.choices,
+        default=StakeholderType.INTERNAL,
+        help_text="Determines the stakeholder's role category across the platform.",
+    )
+    created_at       = models.DateTimeField(default=timezone.now)
+    updated_at       = models.DateTimeField(auto_now=True)
+    created_by       = models.ForeignKey(
         "users.User", on_delete=models.PROTECT, related_name="created_stakeholders"
     )
 
@@ -157,43 +186,127 @@ class Stakeholder(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({self.phone})"
- 
- 
+        return f"{self.name} ({self.get_stakeholder_type_display()})"
+
+
+# ---------------------------------------------------------------------------
+# StakeholderContractAccess — row + column level access with role enforcement
+# ---------------------------------------------------------------------------
+
 class StakeholderContractAccess(models.Model):
     """
-    Defines which contract rows a stakeholder can access.
- 
+    Defines what a stakeholder can see and do within a contract table.
+
+    Row access
+    ----------
     - all_contracts=True  → stakeholder sees every row in the table
-    - all_contracts=False → stakeholder only sees rows whose IDs are in contract_row_ids
+    - all_contracts=False → stakeholder only sees rows in contract_row_ids
+
+    Column access
+    -------------
+    - all_columns=True    → stakeholder sees every column in the table
+    - all_columns=False   → stakeholder only sees columns in allowed_column_keys
+
+    Role
+    ----
+    - READER  → read-only; cannot add, edit, or delete rows
+    - WRITER  → full add / edit / delete on all rows they can access
+
+    The email field is kept here (in addition to Stakeholder.email) to allow
+    a different OTP-delivery address per access rule if needed. Leave blank
+    to fall back to Stakeholder.email at send time.
     """
+
     id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stakeholder = models.ForeignKey(
+    stakeholder      = models.ForeignKey(
         Stakeholder, on_delete=models.CASCADE, related_name="contract_access"
     )
+    # Kept for OTP routing — can differ from Stakeholder.email
     email            = models.EmailField(
         max_length=254, blank=True,
-        help_text="Email to send OTP to for this specific access rule."
+        help_text="Override email for OTP delivery on this access rule. "
+                  "Falls back to the stakeholder's own email if blank."
     )
     table_definition = models.ForeignKey(
         TableDefinition, on_delete=models.CASCADE, related_name="stakeholder_access_rules",
         null=True, blank=True,
         help_text="Which contract table this access rule applies to. Null = all tables."
     )
+
+    # ── Role ────────────────────────────────────────────────────────────────
+    role             = models.CharField(
+        max_length=10,
+        choices=AccessRole.choices,
+        default=AccessRole.READER,
+        help_text="READER = read-only. WRITER = add / edit / delete rows."
+    )
+
+    # ── Row-level access ─────────────────────────────────────────────────────
     all_contracts    = models.BooleanField(
         default=True,
-        help_text="If True, stakeholder has access to all contract rows."
+        help_text="True → access every row. False → only rows listed in contract_row_ids."
     )
     contract_row_ids = models.JSONField(
         default=list, blank=True,
-        help_text="List of integer row IDs the stakeholder can access. Only used when all_contracts=False."
+        help_text="Explicit integer row IDs when all_contracts=False."
     )
+
+    # ── Column-level access ──────────────────────────────────────────────────
+    all_columns      = models.BooleanField(
+        default=True,
+        help_text="True → access every column. False → only columns in allowed_column_keys."
+    )
+    allowed_column_keys = models.JSONField(
+        default=list, blank=True,
+        help_text=(
+            "Snake-case column keys the stakeholder may see. "
+            "Only used when all_columns=False. "
+            "Example: ['contract_value', 'start_date', 'vendor_name']"
+        )
+    )
+
     updated_at       = models.DateTimeField(auto_now=True)
- 
+
     class Meta:
         db_table = "stakeholder_contract_access"
- 
+        # One rule per (stakeholder, table). Null table = global fallback rule.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stakeholder", "table_definition"],
+                name="unique_stakeholder_table_access",
+            )
+        ]
+
     def __str__(self):
-        if self.all_contracts:
-            return f"{self.stakeholder.name} → all contracts"
-        return f"{self.stakeholder.name} → {len(self.contract_row_ids)} row(s)"
+        row_part = "all rows" if self.all_contracts else f"{len(self.contract_row_ids)} row(s)"
+        col_part = "all columns" if self.all_columns else f"{len(self.allowed_column_keys)} col(s)"
+        return f"{self.stakeholder.name} [{self.role}] → {row_part}, {col_part}"
+
+    # ── Convenience helpers — use in views / serializers / permission classes ─
+
+    @property
+    def can_write(self) -> bool:
+        """True only for WRITER role; use this to gate add/edit/delete in views."""
+        return self.role == AccessRole.WRITER
+
+    @property
+    def otp_email(self) -> str:
+        """Returns the OTP delivery email: rule-level override, else stakeholder email."""
+        return self.email or self.stakeholder.email
+
+    def has_row_access(self, row_id: int) -> bool:
+        """Returns True if the stakeholder can see this specific row."""
+        return self.all_contracts or row_id in self.contract_row_ids
+
+    def has_column_access(self, column_key: str) -> bool:
+        """Returns True if the stakeholder can see this specific column."""
+        return self.all_columns or column_key in self.allowed_column_keys
+
+    def filter_row(self, row_dict: dict) -> dict:
+        """
+        Strips columns the stakeholder cannot see from a row dict.
+        Pass the full row; get back only the permitted columns.
+        """
+        if self.all_columns:
+            return row_dict
+        return {k: v for k, v in row_dict.items() if k in self.allowed_column_keys}
