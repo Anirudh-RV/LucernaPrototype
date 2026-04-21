@@ -12,9 +12,13 @@ import Login from "./login/login";
 import SignUp from "./signup/signup";
 import Dashboard from "./dashboard/Dashboard";
 import { AuthProvider } from "./AuthContext";
+import { StakeholderAuthProvider } from "./StakeholderAuthContext";
 import ProtectedRoute from "./ProtectedRoute";
+import StakeholderProtectedRoute from "./StakeholderProtectedRoute";
 import PublicRoute from "./PublicRoute";
 import ResetPassword from "./reset-password/resetPassword";
+import StakeholderLogin from "./stakeholder-login/stakeholderLogin";
+import StakeholderPortal from "./portal/StakeholderPortal";
 import "./App.css";
 import "highlight.js/styles/github-dark.css";
 import Account from "./account/account";
@@ -23,6 +27,7 @@ import CreateProject from "./project/CreateProject";
 function App() {
   return (
     <AuthProvider>
+      <StakeholderAuthProvider>
       <BrowserRouter>
         <Routes>
           <Route
@@ -153,9 +158,20 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* ── Stakeholder routes ── */}
+          <Route path="/stakeholder-login" element={<StakeholderLogin />} />
+          <Route
+            path="/portal"
+            element={
+              <StakeholderProtectedRoute>
+                <StakeholderPortal />
+              </StakeholderProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </StakeholderAuthProvider>
     </AuthProvider>
   );
 }
