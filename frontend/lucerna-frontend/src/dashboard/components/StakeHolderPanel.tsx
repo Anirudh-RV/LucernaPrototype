@@ -90,7 +90,12 @@ interface TableDef {
   id: string;
   name: string;
   is_created: boolean;
-  columns: { column_name: string; display_name: string; column_type: string }[];
+  columns: {
+    id: string;
+    column_name: string;
+    display_name: string;
+    column_type: string;
+  }[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1152,13 +1157,28 @@ export default function StakeholderPanel({
         { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
       );
       const data = await res.json();
-      const defs: TableDef[] = data.results ?? [];
-      setTableDefs(defs);
-      if (defs.length > 0) setSelectedTableDefId(defs[0].id);
+      const baseDefs: TableDef[] = data.results ?? [];
+
+      const detailedDefs: TableDef[] = await Promise.all(
+        baseDefs.map(async (td) => {
+          try {
+            const detailRes = await fetch(
+              `${CONTRACTS_BASE_ENDPOINT}/table-definitions/${td.id}/`,
+              { headers: { "X-LUCERNA-USER-TOKEN": accessToken } },
+            );
+            return await detailRes.json();
+          } catch {
+            return td; // fallback to list item if detail fails
+          }
+        }),
+      );
+
+      setTableDefs(detailedDefs);
+      if (detailedDefs.length > 0) setSelectedTableDefId(detailedDefs[0].id);
 
       const rowMap: Record<string, ContractRow[]> = {};
       await Promise.all(
-        defs
+        detailedDefs
           .filter((d) => d.is_created)
           .map(async (d) => {
             try {
@@ -1171,6 +1191,7 @@ export default function StakeholderPanel({
             } catch {}
           }),
       );
+
       setContractRowsByTable(rowMap);
     } catch {}
   }, [projectId, accessToken]);

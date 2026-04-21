@@ -617,7 +617,11 @@ class StakeholderDetailView(View):
  
     def _get(self, pk):
         try:
-            return Stakeholder.objects.select_related("contract_access").get(pk=pk)
+            return (
+                Stakeholder.objects
+                .prefetch_related("contract_access__table_definition")
+                .get(pk=pk)
+            )
         except Stakeholder.DoesNotExist:
             return None
  
@@ -631,42 +635,78 @@ class StakeholderDetailView(View):
         s = self._get(pk)
         if not s:
             return JsonResponse({"error": "Not found."}, status=404)
- 
+
         body, err = SchemaUtils.parse_body(request)
         if err:
             return err
- 
+
         # Update stakeholder fields
+        update_fields = []
         for field in ("name", "email", "phone"):
             if field in body:
                 setattr(s, field, body[field])
-        s.save(update_fields=["name", "email", "phone", "updated_at"])
- 
+                update_fields.append(field)
+
+        if update_fields:
+            update_fields.append("updated_at")
+            s.save(update_fields=update_fields)
+
         # Update access rule if provided
         if "contract_access" in body:
             access_data = body["contract_access"]
-            access, _ = StakeholderContractAccess.objects.get_or_create(stakeholder=s)
- 
-            if "all_contracts" in access_data:
-                access.all_contracts = access_data["all_contracts"]
-            if "contract_row_ids" in access_data:
-                access.contract_row_ids = access_data["contract_row_ids"]
+
+            table_def = None
             if "table_definition" in access_data:
                 td_id = access_data["table_definition"]
-                if td_id is None:
-                    access.table_definition = None
-                else:
+                if td_id is not None:
                     try:
-                        access.table_definition = TableDefinition.objects.get(id=td_id, project=s.project)
+                        project_id = body.get("project")
+                        if not project_id:
+                            return JsonResponse(
+                                {"error": "'project' is required when updating contract_access."},
+                                status=400,
+                            )
+
+                        table_def = TableDefinition.objects.get(
+                            id=td_id,
+                            project_id=project_id,
+                        )
                     except TableDefinition.DoesNotExist:
                         return JsonResponse({"error": "TableDefinition not found."}, status=404)
- 
-            # Clear row IDs if switching to all_contracts
+
+            # Use stakeholder + table_definition for the access rule lookup
+            access, _ = StakeholderContractAccess.objects.get_or_create(
+                stakeholder=s,
+                table_definition=table_def,
+                defaults={},
+            )
+
+            if "email" in access_data:
+                access.email = access_data["email"]
+
+            if "role" in access_data:
+                access.role = access_data["role"]
+
+            if "all_contracts" in access_data:
+                access.all_contracts = access_data["all_contracts"]
+
+            if "contract_row_ids" in access_data:
+                access.contract_row_ids = access_data["contract_row_ids"] or []
+
+            if "all_columns" in access_data:
+                access.all_columns = access_data["all_columns"]
+
+            if "allowed_column_keys" in access_data:
+                access.allowed_column_keys = access_data["allowed_column_keys"] or []
+
             if access.all_contracts:
                 access.contract_row_ids = []
- 
+
+            if access.all_columns:
+                access.allowed_column_keys = []
+
             access.save()
- 
+
         return JsonResponse(SchemaUtils.serialize_stakeholder(s))
  
     def delete(self, request, pk):
