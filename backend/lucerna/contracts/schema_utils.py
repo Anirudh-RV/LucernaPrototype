@@ -310,26 +310,35 @@ class SchemaUtils:
         data = {
             "id":         str(s.id),
             "name":       s.name,
+            "email":      s.email,
             "phone":      s.phone,
+            "stakeholder_type": s.stakeholder_type,
             "created_at": s.created_at.isoformat(),
             "updated_at": s.updated_at.isoformat(),
         }
+
         if include_access:
             access_qs = s.contract_access.all()
+
             if project_id:
                 # Filter to access rules whose table belongs to this project
-                access_qs = access_qs.filter(
-                    table_definition__project_id=project_id
-                )
+                access_qs = access_qs.filter(table_definition__project_id=project_id)
+
             data["contract_access"] = [
                 {
-                    "id":               str(a.id),
-                    "email":            a.email,
-                    "all_contracts":    a.all_contracts,
-                    "table_definition": str(a.table_definition_id) if a.table_definition_id else None,
-                    "contract_row_ids": a.contract_row_ids,
-                    "updated_at":       a.updated_at.isoformat(),
+                    "id":                  str(a.id),
+                    "email":               a.email,
+                    "all_contracts":       a.all_contracts,
+                    "table_definition":    str(a.table_definition_id) if a.table_definition_id else None,
+                    "contract_row_ids":    a.contract_row_ids or [],
+                    "role":                a.role,
+                    "all_columns":         a.all_columns,
+                    "allowed_column_keys": a.allowed_column_keys or [],
+                    "updated_at":          a.updated_at.isoformat(),
                 }
                 for a in access_qs
             ]
+        else:
+            data["contract_access"] = []
+
         return data
