@@ -6,6 +6,7 @@ from .models import (
     TableCreationLog,
     Stakeholder,
     StakeholderContractAccess,
+    ContractRowChangeLog
 )
 
 # -------------------------
@@ -116,3 +117,7 @@ class StakeholderContractAccessAdmin(admin.ModelAdmin):
             return format_html("<em>all</em>")
         return len(obj.contract_row_ids or [])
     rows_count.short_description = "Allowed rows"
+    
+@admin.register(ContractRowChangeLog)
+class ContractRowChangeLogAdmin(admin.ModelAdmin):
+    pass

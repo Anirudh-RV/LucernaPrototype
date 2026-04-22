@@ -19,4 +19,9 @@ urlpatterns = [
     path('column-types/', auth_required(views.ColumnTypeChoicesView.as_view()), name='column-type-choices'),
     path("stakeholders/", auth_required(views.StakeholderListCreateView.as_view()), name="stakeholder-list-create"),
     path("stakeholders/<uuid:pk>/", auth_required(views.StakeholderDetailView.as_view()), name="stakeholder-detail"),
+    path(
+    "table-definitions/<uuid:pk>/activity/",
+    auth_required(views.TableActivityView.as_view()),
+    name="table-activity",
+),
 ]

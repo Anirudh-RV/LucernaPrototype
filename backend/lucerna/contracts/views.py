@@ -11,9 +11,12 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.text import slugify
 
-from .models import ColumnDefinition, ColumnType, TableDefinition, Stakeholder, StakeholderContractAccess, StakeholderType, AccessRole
+from .models import ColumnDefinition, ColumnType, TableDefinition, Stakeholder, StakeholderContractAccess, StakeholderType, AccessRole, ContractRowChangeLog
 from .schema_utils import SchemaUtils
 from projects.models import Project
+
+
+
 
 @method_decorator(csrf_exempt, name="dispatch")
 class TableDefinitionListCreateView(View):
@@ -298,6 +301,16 @@ class TableRowsView(View):
 
         try:
             row_id = SchemaUtils.insert_row(td, body)
+            after_data = SchemaUtils.fetch_row(td, row_id) or body
+            SchemaUtils.log_row_change(
+                td=td,
+                row_identifier=row_id,
+                operation=ContractRowChangeLog.Operation.CREATE,
+                user=request.user,
+                after_data=after_data,
+                changed_fields=list(body.keys()),
+                metadata={"source": "TableRowsView.post"},
+            )
         except Exception as exc:
             return JsonResponse({"error": str(exc)}, status=500)
 
@@ -498,14 +511,46 @@ class TableRowDetailView(View):
                 {"error": f"Unknown or immutable columns: {', '.join(sorted(unknown))}"},
                 status=400,
             )
- 
+        
+        before_data = SchemaUtils.fetch_row(td, row_id) or {}
         try:
             updated = SchemaUtils.update_row(td, row_id, body)
         except Exception as exc:
+            SchemaUtils.log_row_change(
+                td=td,
+                row_identifier=row_id,
+                operation=ContractRowChangeLog.Operation.UPDATE,
+                user=request.user,
+                before_data=before_data,
+                after_data=before_data,
+                changed_fields=list(body.keys()),
+                success=False,
+                error_message=str(exc),
+                metadata={"source": "TableRowDetailView.patch"},
+            )
             return JsonResponse({"error": str(exc)}, status=500)
  
         if not updated:
             return JsonResponse({"error": "Row not found."}, status=404)
+        
+
+        after_data = SchemaUtils.fetch_row(td, row_id) or {}
+
+        changed_fields = [
+            key for key in body.keys()
+            if before_data.get(key) != after_data.get(key)
+        ]
+
+        SchemaUtils.log_row_change(
+            td=td,
+            row_identifier=row_id,
+            operation=ContractRowChangeLog.Operation.UPDATE,
+            user=request.user,
+            before_data=before_data,
+            after_data=after_data,
+            changed_fields=changed_fields,
+            metadata={"source": "TableRowDetailView.patch"},
+        )
  
         return JsonResponse({"id": row_id, "updated": list(body.keys())})
  
@@ -517,15 +562,70 @@ class TableRowDetailView(View):
         if not td.is_created:
             return JsonResponse({"error": "Table has not been created yet."}, status=400)
  
+        before_data = SchemaUtils.fetch_row(td, row_id) or {}
+        
         try:
             deleted = SchemaUtils.delete_row(td, row_id)
         except Exception as exc:
+            SchemaUtils.log_row_change(
+                td=td,
+                row_identifier=row_id,
+                operation=ContractRowChangeLog.Operation.DELETE,
+                user=request.user,
+                before_data=before_data,
+                success=False,
+                error_message=str(exc),
+                metadata={"source": "TableRowDetailView.delete"},
+            )
             return JsonResponse({"error": str(exc)}, status=500)
  
         if not deleted:
             return JsonResponse({"error": "Row not found."}, status=404)
+        
+        SchemaUtils.log_row_change(
+        td=td,
+            row_identifier=row_id,
+            operation=ContractRowChangeLog.Operation.DELETE,
+            user=request.user,
+            before_data=before_data,
+            metadata={"source": "TableRowDetailView.delete"},
+        )
  
         return JsonResponse({"detail": "Row deleted."})
+    
+    def get(self, request, pk, row_id):
+        td = self._get_table(pk)
+        if not td:
+            return JsonResponse({"error": "TableDefinition not found."}, status=404)
+        if not td.is_created:
+            return JsonResponse({"error": "Table has not been created yet."}, status=400)
+
+        row = SchemaUtils.fetch_row(td, row_id)
+        if not row:
+            return JsonResponse({"error": "Row not found."}, status=404)
+
+        history_qs = td.row_change_logs.filter(row_identifier=str(row_id)).order_by("-performed_at")
+
+        history = [
+            {
+                "id": str(log.id),
+                "operation": log.operation,
+                "before_data": log.before_data,
+                "after_data": log.after_data,
+                "changed_fields": log.changed_fields,
+                "performed_by": str(log.performed_by_id),
+                "performed_at": log.performed_at.isoformat(),
+                "success": log.success,
+                "error_message": log.error_message,
+                "metadata": log.metadata,
+            }
+            for log in history_qs
+        ]
+
+        return JsonResponse({
+            "row": row,
+            "history": history,
+        })
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -728,4 +828,51 @@ class StakeholderDetailView(View):
             return JsonResponse({"error": "Not found."}, status=404)
         s.delete()
         return JsonResponse({"detail": "Deleted."})
- 
+
+class TableActivityView(View):
+    def get(self, request, pk):
+        td = TableDefinition.objects.filter(pk=pk).first()
+        if not td:
+            return JsonResponse({"error": "Not found."}, status=404)
+
+        row_id = request.GET.get("row_id")
+
+        row_logs = td.row_change_logs.all()
+        if row_id:
+            row_logs = row_logs.filter(row_identifier=str(row_id))
+
+        ddl_logs = td.ddl_logs.all()
+
+        activity = []
+
+        for log in ddl_logs:
+            activity.append({
+                "kind": "ddl",
+                "id": str(log.id),
+                "operation": log.operation,
+                "detail": log.detail,
+                "performed_by": str(log.performed_by_id),
+                "performed_at": log.performed_at.isoformat(),
+                "success": log.success,
+                "error_message": log.error_message,
+            })
+
+        for log in row_logs:
+            activity.append({
+                "kind": "row",
+                "id": str(log.id),
+                "row_identifier": log.row_identifier,
+                "operation": log.operation,
+                "before_data": log.before_data,
+                "after_data": log.after_data,
+                "changed_fields": log.changed_fields,
+                "performed_by": str(log.performed_by_id),
+                "performed_at": log.performed_at.isoformat(),
+                "success": log.success,
+                "error_message": log.error_message,
+                "metadata": log.metadata,
+            })
+
+        activity.sort(key=lambda x: x["performed_at"], reverse=True)
+
+        return JsonResponse({"count": len(activity), "results": activity})

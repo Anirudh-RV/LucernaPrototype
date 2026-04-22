@@ -15,7 +15,12 @@ import json
 from django.http import JsonResponse
 from django.db import connection, models as django_models
 from django.db.models.functions import Now
-from .models import ColumnDefinition, ColumnType, TableCreationLog, TableDefinition, Stakeholder, StakeholderContractAccess
+from .models import ColumnDefinition, ColumnType, TableCreationLog, TableDefinition, Stakeholder, StakeholderContractAccess, ContractRowChangeLog
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+
+def make_json_safe(value):
+    return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
 
 
 # ---------------------------------------------------------------------------
@@ -342,3 +347,35 @@ class SchemaUtils:
             data["contract_access"] = []
 
         return data
+    
+    @staticmethod
+    def fetch_row(td, row_id):
+        rows = SchemaUtils.fetch_rows(td, {"id": row_id})
+        return rows[0] if rows else None
+    
+    @staticmethod
+    def log_row_change(
+        *,
+        td,
+        row_identifier,
+        operation,
+        user,
+        before_data=None,
+        after_data=None,
+        changed_fields=None,
+        success=True,
+        error_message="",
+        metadata=None,
+    ):
+        return ContractRowChangeLog.objects.create(
+            table_definition=td,
+            row_identifier=str(row_identifier),
+            operation=operation,
+            before_data=make_json_safe(before_data or {}),
+            after_data=make_json_safe(after_data or {}),
+            changed_fields=make_json_safe(changed_fields or []),
+            performed_by=user,
+            success=success,
+            error_message=error_message,
+            metadata=make_json_safe(metadata or {}),
+        )

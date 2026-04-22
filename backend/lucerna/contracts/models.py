@@ -310,3 +310,53 @@ class StakeholderContractAccess(models.Model):
         if self.all_columns:
             return row_dict
         return {k: v for k, v in row_dict.items() if k in self.allowed_column_keys}
+    
+
+class ContractRowChangeLog(models.Model):
+    class Operation(models.TextChoices):
+        CREATE = "create", "Create"
+        UPDATE = "update", "Update"
+        DELETE = "delete", "Delete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    table_definition = models.ForeignKey(
+        TableDefinition,
+        on_delete=models.CASCADE,
+        related_name="row_change_logs",
+    )
+
+    # Store as string because your dynamic row PK may be int / uuid / string
+    row_identifier = models.CharField(max_length=100, db_index=True)
+
+    operation = models.CharField(max_length=10, choices=Operation.choices)
+
+    before_data = models.JSONField(default=dict, blank=True)
+    after_data = models.JSONField(default=dict, blank=True)
+
+    # Optional but useful for UI diff display
+    changed_fields = models.JSONField(default=list, blank=True)
+
+    performed_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.PROTECT,
+        related_name="row_change_operations",
+    )
+    performed_at = models.DateTimeField(default=timezone.now)
+
+    success = models.BooleanField(default=True)
+    error_message = models.TextField(blank=True)
+
+    # Optional extra context: request IP, source view, etc.
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "contract_row_change_log"
+        ordering = ["-performed_at"]
+        indexes = [
+            models.Index(fields=["table_definition", "row_identifier", "-performed_at"]),
+            models.Index(fields=["table_definition", "-performed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.table_definition.name} #{self.row_identifier} [{self.operation}]"

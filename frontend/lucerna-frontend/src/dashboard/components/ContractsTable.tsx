@@ -36,6 +36,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ReplayIcon from "@mui/icons-material/Replay";
 import { CONTRACTS_BASE_ENDPOINT } from "../../constants";
+import TableLogsDialog from "./TableLogsDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -564,6 +565,8 @@ export default function ContractsTable({
   const [newRowData, setNewRowData] = useState<RowData>({});
   const [savingRow, setSavingRow] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
+
+  const [openLogs, setOpenLogs] = useState(false);
 
   // Add column panel
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -1161,6 +1164,15 @@ export default function ContractsTable({
         >
           Add Row
         </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<TableRowsIcon />}
+          onClick={() => setOpenLogs(true)}
+          disabled={!tableDef?.is_created}
+        >
+          Show Full Table Logs
+        </Button>
       </Box>
 
       {/* ── Add column panel ── */}
@@ -1696,6 +1708,16 @@ export default function ContractsTable({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {tableDef && (
+        <TableLogsDialog
+          open={openLogs}
+          onClose={() => setOpenLogs(false)}
+          projectId={projectId}
+          tableDefinitionId={tableDef.id}
+          accessToken={accessToken}
+        />
+      )}
     </Box>
   );
 }
