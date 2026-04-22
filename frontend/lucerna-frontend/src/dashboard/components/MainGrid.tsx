@@ -1,11 +1,12 @@
-import { Box } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, Stack } from "@mui/material";
 import { useAuth } from "../../AuthContext";
 import StakeholderPanel from "./StakeHolderPanel";
 import ContractsTable from "./ContractsTable";
+import TableLogsDialog from "./TableLogsDialog";
 
 export default function MainGrid({
   projectId,
-  projectDomain,
 }: {
   projectId: string | undefined;
   projectDomain: string | null | undefined;
