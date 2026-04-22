@@ -54,6 +54,19 @@ class TableDefinitionListCreateView(View):
 
         slug = body.get("slug") or slugify(name).replace("-", "_")
         columns_data = body.get("columns", [])
+        
+        column_names = [
+            (col.get("column_name", "").strip())
+            for col in columns_data
+            if col.get("column_name", "").strip()
+        ]
+
+        dupes = {name for name in column_names if column_names.count(name) > 1}
+        if dupes:
+            return JsonResponse(
+                {"error": f"Duplicate column names in request: {', '.join(sorted(dupes))}"},
+                status=400,
+            )
 
         # Validate project exists
         from projects.models import Project
