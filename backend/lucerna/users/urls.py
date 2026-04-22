@@ -7,6 +7,7 @@ from .views import (
     UserEditViewV1,
     UserPasswordUpdateViewV1,
 )
+from .stakeholder_views import StakeholderLoginView
 
 urlpatterns = [
     path('v1/create/', csrf_exempt(CreateUserViewV1.as_view()), name='create_user'),
@@ -18,4 +19,5 @@ urlpatterns = [
         csrf_exempt(UserPasswordUpdateViewV1.as_view()),
         name='update_password',
     ),
+    path('v1/stakeholder/login/', csrf_exempt(StakeholderLoginView.as_view()), name='stakeholder-login'),
 ]

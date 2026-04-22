@@ -315,7 +315,7 @@ class SchemaUtils:
         data = {
             "id":         str(s.id),
             "name":       s.name,
-            "email":      s.email,
+            "email":      s.contract_access.first().email if s.contract_access.exists() else "",
             "phone":      s.phone,
             "stakeholder_type": s.stakeholder_type,
             "created_at": s.created_at.isoformat(),

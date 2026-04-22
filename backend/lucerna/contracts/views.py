@@ -671,7 +671,6 @@ class StakeholderListCreateView(View):
                 phone=phone,
                 defaults={
                     "name":             name,
-                    "email":            email,
                     "stakeholder_type": stakeholder_type,
                     "created_by":       request.user,
                 },
@@ -680,7 +679,6 @@ class StakeholderListCreateView(View):
             # No phone — always create a new stakeholder record
             stakeholder = Stakeholder.objects.create(
                 name             = name,
-                email            = email,
                 phone            = phone,
                 stakeholder_type = stakeholder_type,
                 created_by       = request.user,
@@ -755,7 +753,7 @@ class StakeholderDetailView(View):
 
         # Update stakeholder fields
         update_fields = []
-        for field in ("name", "email", "phone"):
+        for field in ("name", "phone"):
             if field in body:
                 setattr(s, field, body[field])
                 update_fields.append(field)

@@ -165,9 +165,6 @@ class AccessRole(models.TextChoices):
 class Stakeholder(models.Model):
     id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name             = models.CharField(max_length=200)
-    # email was previously only on the access rule; it now lives on the
-    # stakeholder so it can be shown/edited on the "More details" page.
-    email            = models.EmailField(max_length=254, blank=True)
     phone            = models.CharField(max_length=50, unique=True)  # globally unique — the real PK for lookups
     stakeholder_type = models.CharField(
         max_length=20,
@@ -184,6 +181,10 @@ class Stakeholder(models.Model):
     class Meta:
         db_table = "stakeholder"
         ordering = ["name"]
+
+    @property
+    def is_stakeholder(self) -> bool:
+        return True
 
     def __str__(self):
         return f"{self.name} ({self.get_stakeholder_type_display()})"

@@ -1,7 +1,9 @@
 from functools import wraps
 from django.http import JsonResponse
 from users.services import UserServices
-from projects.models import Project, UserProjectMapping 
+from users.stakeholder_services import get_stakeholder_from_token
+from projects.models import Project, UserProjectMapping
+from contracts.models import StakeholderContractAccess
 import uuid
 import os
 
@@ -76,5 +78,40 @@ def user_project_auth_required(view_method):
         request.privilege = mapping.privilege
 
         return view_method(request, *args, **kwargs)
+
+    return wrapper
+
+
+def stakeholder_auth_required(view_func):
+    """
+    Decorator for stakeholder-only endpoints.
+    Reads X-LUCERNA-STAKEHOLDER-TOKEN, resolves the Stakeholder,
+    and attaches request.stakeholder + request.stakeholder_access_rules.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        token = request.META.get("HTTP_X_LUCERNA_STAKEHOLDER_TOKEN")
+
+        if not token:
+            return JsonResponse(
+                {"status": 0, "status_description": "missing_stakeholder_token"},
+                status=400,
+            )
+
+        stakeholder = get_stakeholder_from_token(token)
+        if not stakeholder:
+            return JsonResponse(
+                {"status": 0, "status_description": "invalid_stakeholder_token"},
+                status=401,
+            )
+
+        request.stakeholder = stakeholder
+        request.stakeholder_access_rules = (
+            StakeholderContractAccess.objects
+            .filter(stakeholder=stakeholder)
+            .select_related("table_definition")
+        )
+
+        return view_func(request, *args, **kwargs)
 
     return wrapper

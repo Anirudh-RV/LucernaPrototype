@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
-from decorators import auth_required
+from .stakeholder_portal_views import StakeholderPortalTablesView, StakeholderPortalRowsView
+from decorators import auth_required, stakeholder_auth_required
 
 urlpatterns = [
     path('table-definitions/', auth_required(views.TableDefinitionListCreateView.as_view()), name='table-definition-list-create'),
@@ -24,4 +25,7 @@ urlpatterns = [
     auth_required(views.TableActivityView.as_view()),
     name="table-activity",
 ),
+    # ── Stakeholder portal (stakeholder JWT auth) ──
+    path("portal/tables/", stakeholder_auth_required(StakeholderPortalTablesView.as_view()), name="stakeholder-portal-tables"),
+    path("portal/tables/<uuid:table_id>/rows/", stakeholder_auth_required(StakeholderPortalRowsView.as_view()), name="stakeholder-portal-rows"),
 ]

@@ -52,3 +52,9 @@ export const TABLE_DEFINITIONS_ENDPOINT =
 export const CONTRACTS_BASE_ENDPOINT = LUCERNA_ENDPOINT + "/api/contracts";
 export const BASE_STAKEHOLDERS_ENDPOINT =
   LUCERNA_ENDPOINT + "/api/contracts/stakeholders";
+
+// ── Stakeholder Portal ──────────────────────────────────────────────────────
+export const STAKEHOLDER_LOGIN_ENDPOINT =
+  LUCERNA_ENDPOINT + "/api/user/v1/stakeholder/login/";
+export const STAKEHOLDER_PORTAL_TABLES_ENDPOINT =
+  LUCERNA_ENDPOINT + "/api/contracts/portal/tables/";
